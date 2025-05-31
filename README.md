@@ -100,14 +100,12 @@ This Jax-based environment for 2D geometric navigation is introduced with this w
 
 If you use our SFL method or JaxNav in your work, please cite us as:
 ```bibtex
-@misc{rutherford2024noregrets,
-      title={No Regrets: Investigating and Improving Regret Approximations for Curriculum Discovery}, 
-      author={Alexander Rutherford and Michael Beukman and Timon Willi and Bruno Lacerda and Nick Hawes and Jakob Foerster},
-      year={2024},
-      eprint={2408.15099},
-      archivePrefix={arXiv},
-      primaryClass={cs.LG},
-      url={https://arxiv.org/abs/2408.15099}, 
+@inproceedings{rutherford2024noregrets,
+    title={No Regrets: Investigating and Improving Regret Approximations for Curriculum Discovery},
+    author={Alexander Rutherford and Michael Beukman and Timon Willi and Bruno Lacerda and Nick Hawes and Jakob Nicolaus Foerster},
+    booktitle={The Thirty-eighth Annual Conference on Neural Information Processing Systems},
+    year={2024},
+    url={https://arxiv.org/abs/2408.15099}
 }
 ```
 
