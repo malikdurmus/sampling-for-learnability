@@ -37,7 +37,7 @@ Our PLR and ACCEL implementations are built off [JaxUED](https://github.com/Dram
 
 ## Paper TL;DR
 
-We introduce **Sampling For Learnability (SLF), a new UED method** for binary-outcome deterministic settings which outperforms current state-of-the-art approaches on Minigrid and our robotics simulator JaxNav. SFL uniformly randomly samples maps based on *learnability* which given an agent's success rate on a level $p$, is calculated as $p\cdot (1-p)$. By training on levels with learnability, SFL is able to find the frontier of the agent's ability and hence improve robustness.
+We introduce **Sampling For Learnability (SFL), a new UED method** for binary-outcome deterministic settings which outperforms current state-of-the-art approaches on Minigrid and our robotics simulator JaxNav. SFL uniformly randomly samples maps based on *learnability* which given an agent's success rate on a level $p$, is calculated as $p\cdot (1-p)$. By training on levels with learnability, SFL is able to find the frontier of the agent's ability and hence improve robustness.
 
 Rather than just comparing performance on a set of hand designed test maps, we introduce **a new evaluation protocol for curriculum methods, designed to explicitly test robustness**. Our protocol computes a *risk* metric on the performance of the method, by evaluating its performance in the worst $\alpha\%$ of a newly sampled set of environments. Results for this protocol are illusrated below, with our SFL method proving more robust.
 
