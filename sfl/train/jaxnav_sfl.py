@@ -18,7 +18,6 @@ import pickle
 import time 
 from PIL import Image
 import wandb
-import matplotlib.pyplot as plt
 
 from jaxmarl.environments.jaxnav.jaxnav_env import JaxNav, EnvInstance, NUM_REWARD_COMPONENTS, REWARD_COMPONENT_DENSE, REWARD_COMPONENT_SPARSE, listify_reward
 
@@ -646,10 +645,13 @@ def main(config):
             env.init_render(ax, state, lidar=False, ticks_off=True)
             ax.set_title(f'learnability: {score:.3f}')
             ax.set_aspect('equal', 'box')
-                        
+                
         plt.tight_layout()
         fig.canvas.draw()
-        im = Image.frombytes('RGB', fig.canvas.get_width_height(), fig.canvas.tostring_rgb()) 
+        rgba_buffer = np.array(fig.canvas.buffer_rgba())
+        im = Image.fromarray(rgba_buffer).convert("RGB")        
+    
+    
         wandb.log({"maps": wandb.Image(im)}, step=epoch)
     
     @jax.jit
