@@ -17,6 +17,9 @@ from functools import partial
 import pickle
 import time 
 from PIL import Image
+import matplotlib
+matplotlib.use('Agg') 
+import matplotlib.pyplot as plt
 import wandb
 
 from jaxmarl.environments.jaxnav.jaxnav_env import JaxNav, EnvInstance, NUM_REWARD_COMPONENTS, REWARD_COMPONENT_DENSE, REWARD_COMPONENT_SPARSE, listify_reward
