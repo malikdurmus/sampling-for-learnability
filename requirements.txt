@@ -1,4 +1,16 @@
 pandas
 hydra-core
-jaxmarl @ git+https://github.com/FLAIROx/JaxMARL  # use latest version
+jaxmarl @ git+https://github.com/FLAIROx/JaxMARL
 jaxued @ git+https://github.com/DramaCow/jaxued
+jax == 0.4.29
+jax[cuda12_pip]==0.4.29
+nvidia-cublas-cu12>=12.1.3.1
+nvidia-cudnn-cu12>=9.0
+nvidia-nvjitlink-cu12>=12.1.105
+scipy <= 1.12.0
+orbax-checkpoint <= 0.5.21
+wandb
+tqdm
+flax == 0.10.0
+optax <= 0.2.4
+distrax

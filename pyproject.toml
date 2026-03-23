@@ -17,11 +17,11 @@ authors = [
     {name = "Alexander Rutherford", email = "arutherford@robots.ox.ac.uk"},
   ]
 dynamic = ["version", "dependencies"]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
     "Operating System :: OS Independent",
