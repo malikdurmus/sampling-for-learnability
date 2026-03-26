@@ -63,7 +63,8 @@ def unbatchify(x: jnp.ndarray, agent_list, num_envs, num_actors):
 
 @hydra.main(version_base=None, config_path="config", config_name="jaxnav-sfl")
 def main(config):
-    
+
+    # WAND B QAND CONFIG
     config = OmegaConf.to_container(config)
     run = wandb.init(
         group=config["GROUP_NAME"],
@@ -278,7 +279,7 @@ def main(config):
             print('traj batch info', traj_batch.info["NumC"].shape)
             done_by_env = traj_batch.done.reshape((-1, env.num_agents, config["BATCH_SIZE"]))
             reward_by_env = traj_batch.reward.reshape((-1, env.num_agents, config["BATCH_SIZE"]))
-            info_by_actor = jax.tree_map(lambda x: x.swapaxes(2, 1).reshape((-1, BATCH_ACTORS)), traj_batch.info)
+            info_by_actor = jax.tree_util.tree_map(lambda x: x.swapaxes(2, 1).reshape((-1, BATCH_ACTORS)), traj_batch.info)
             print('done_by_env', done_by_env.shape)
             print('reward_by_env', reward_by_env.shape)
             print('info_by_actor', info_by_actor)
@@ -292,12 +293,12 @@ def main(config):
         rngs = jax.random.split(rng, config["NUM_BATCHES"])
         _, (learnability, env_instances) = jax.lax.scan(_batch_step, None, rngs, config["NUM_BATCHES"])
         
-        flat_env_instances = jax.tree_map(lambda x: x.reshape((-1,) + x.shape[2:]), env_instances)
+        flat_env_instances = jax.tree_util.tree_map(lambda x: x.reshape((-1,) + x.shape[2:]), env_instances)
         learnability = learnability.flatten()
         top_1000 = jnp.argsort(learnability)[-config["NUM_TO_SAVE"]:]
         print('top 1000', top_1000)
         
-        top_1000_instances = jax.tree_map(lambda x: x.at[top_1000].get(), flat_env_instances) 
+        top_1000_instances = jax.tree_util.tree_map(lambda x: x.at[top_1000].get(), flat_env_instances)
         print('top 1000 instances', top_1000_instances)
         return learnability.at[top_1000].get(), top_1000_instances
         
@@ -358,7 +359,7 @@ def main(config):
             _env_step, runner_state, None, t_config["NUM_STEPS"]
         )
         traj_batch, dormancy = traj_batch_dormancy
-        dormancy = jax.tree_map(lambda x: x.mean(), dormancy)
+        dormancy = jax.tree_util.tree_map(lambda x: x.mean(), dormancy)
         
         @partial(jax.vmap, in_axes=(1, 1))
         def _calc_ep_return_by_agent(dones, returns):
@@ -381,7 +382,7 @@ def main(config):
         else:
             reward_by_env = traj_batch.reward
         episodic_return_length = _calc_ep_return_by_agent(traj_batch.done, reward_by_env)
-        episodic_return_length = jax.tree_map(lambda x: x.mean(), episodic_return_length)
+        episodic_return_length = jax.tree_util.tree_map(lambda x: x.mean(), episodic_return_length)
         # CALCULATE ADVANTAGE
         train_state, env_state, start_state, last_obs, last_done, hstate, update_steps, rng = runner_state
         last_obs_batch = batchify(last_obs, env.agents, t_config["NUM_ACTORS"])
@@ -532,7 +533,7 @@ def main(config):
             train_state, total_loss = jax.lax.scan(
                 _update_minbatch, train_state, minibatches
             )
-            # total_loss = jax.tree_map(lambda x: x.mean(), total_loss)
+            # total_loss = jax.tree_util.tree_map(lambda x: x.mean(), total_loss)
             update_state = (
                 train_state,
                 init_hstate,
@@ -544,7 +545,7 @@ def main(config):
             return update_state, total_loss
 
         # init_hstate = initial_hstate[None, :].squeeze().transpose()
-        init_hstate = jax.tree_map(lambda x: x[None, :].squeeze().transpose(), initial_hstate)
+        init_hstate = jax.tree_util.tree_map(lambda x: x[None, :].squeeze().transpose(), initial_hstate)
         update_state = (
             train_state,
             init_hstate,
@@ -558,7 +559,7 @@ def main(config):
         )
         train_state = update_state[0]
         metric = traj_batch.info
-        metric = jax.tree_map(
+        metric = jax.tree_util.tree_map(
             lambda x: x.sum(axis=-1).reshape(
                 (t_config["NUM_STEPS"], t_config["NUM_ENVS"])  # , env.num_agents
             ),
@@ -594,7 +595,7 @@ def main(config):
             "critic": dormancy.critic,
         }
         ratio0 = jnp.around(loss_info[1][3].at[0,0].get().mean(), decimals=6)
-        loss_info = jax.tree_map(lambda x: x.mean(), loss_info)
+        loss_info = jax.tree_util.tree_map(lambda x: x.mean(), loss_info)
         metric["loss_info"] = {
             "total_loss": loss_info[0],
             "value_loss": loss_info[1][0],
@@ -609,9 +610,9 @@ def main(config):
         metric["episodic_return_length"] = episodic_return_length
         metric["update_steps"] = update_steps
         metric["terminations"] = {k: traj_batch.info[k] for k in ["NumC", "GoalR", "AgentC", "MapC", "TimeO"]}
-        metric["terminations"] = jax.tree_map(lambda x: x.sum(), metric["terminations"])
+        metric["terminations"] = jax.tree_util.tree_map(lambda x: x.sum(), metric["terminations"])
         metric["dormancy"] = dormancy_log
-        metric["env-metrics"] = jax.tree_map(lambda x: x.mean(), jax.vmap(env.get_env_metrics)(start_state))
+        metric["env-metrics"] = jax.tree_util.tree_map(lambda x: x.mean(), jax.vmap(env.get_env_metrics)(start_state))
         metric["mean_lambda_val"] = env_state.rew_lambda.mean()
         jax.experimental.io_callback(callback, None, metric)
         
@@ -622,11 +623,11 @@ def main(config):
         
         rng, _rng = jax.random.split(rng)
         sampled_env_instances_idxs = jax.random.randint(_rng, (t_config["NUM_ENVS_FROM_SAMPLED"],), 0, num_env_instances)
-        sampled_env_instances = jax.tree_map(lambda x: x.at[sampled_env_instances_idxs].get(), instances)
+        sampled_env_instances = jax.tree_util.tree_map(lambda x: x.at[sampled_env_instances_idxs].get(), instances)
         obsv_sampled, env_state_sampled = jax.vmap(env.set_env_instance, in_axes=(0,))(sampled_env_instances)
         
-        obsv = jax.tree_map(lambda x, y: jnp.concatenate([x, y], axis=0), obsv_gen, obsv_sampled)
-        env_state = jax.tree_map(lambda x, y: jnp.concatenate([x, y], axis=0), env_state_gen, env_state_sampled)
+        obsv = jax.tree_util.tree_map(lambda x, y: jnp.concatenate([x, y], axis=0), obsv_gen, obsv_sampled)
+        env_state = jax.tree_util.tree_map(lambda x, y: jnp.concatenate([x, y], axis=0), env_state_gen, env_state_sampled)
         
         start_state = env_state
         hstate = ScannedRNN.initialize_carry(t_config["NUM_ACTORS"], t_config["HIDDEN_SIZE"])
@@ -643,7 +644,7 @@ def main(config):
         for i, ax in enumerate(axes):
             # ax.imshow(train_state.plr_buffer.get_sample(i))
             score = learnability[i]            
-            state = jax.tree_map(lambda x: x[i], states)
+            state = jax.tree_util.tree_map(lambda x: x[i], states)
                         
             env.init_render(ax, state, lidar=False, ticks_off=True)
             ax.set_title(f'learnability: {score:.3f}')
@@ -661,11 +662,14 @@ def main(config):
     def train_and_eval_step(runner_state, eval_rng):
         
         learnability_rng, eval_singleton_rng, eval_sampled_rng = jax.random.split(eval_rng, 3)
-        # TRAIN
+        # -----------------------------------TRAIN---------------------------------------------
         learnabilty_scores, instances = get_learnability_set(learnability_rng, runner_state[0].params)
         runner_state_instances = (runner_state, instances)
         runner_state_instances, metrics = jax.lax.scan(train_step, runner_state_instances, None, t_config["EVAL_FREQ"])
-        # EVAL
+
+
+
+        # --------------------------------------EVAL-----------------------------------------
         
         test_metrics = {
             "learnability_set_scores": learnabilty_scores,
@@ -677,7 +681,7 @@ def main(config):
         runner_state, _ = runner_state_instances
         test_metrics["update_count"] = runner_state[-2]
         
-        top_instances = jax.tree_map(lambda x: x.at[-20:].get(), instances)
+        top_instances = jax.tree_util.tree_map(lambda x: x.at[-20:].get(), instances)
         _, top_states = jax.vmap(env.set_env_instance)(top_instances)
         
         return runner_state, (learnabilty_scores.at[-20:].get(), top_states), test_metrics
@@ -695,12 +699,14 @@ def main(config):
     )
     checkpoint_steps = t_config["NUM_UPDATES"] // t_config["EVAL_FREQ"] // t_config["NUM_CHECKPOINTS"]
     print('eval freq', t_config["EVAL_FREQ"])
+
+
     for eval_step in range(int(t_config["NUM_UPDATES"] // t_config["EVAL_FREQ"])):
         start_time = time.time()
         rng, eval_rng = jax.random.split(rng)
-        runner_state, instances, metrics = train_and_eval_step(runner_state, eval_rng)
+        runner_state, instances, metrics = train_and_eval_step(runner_state, eval_rng) # TRAINING AND EVAL HAPPENS IN ONE STEP
         curr_time = time.time()
-        log_buffer(*instances, metrics["update_count"])
+        log_buffer(*instances, metrics["update_count"]) # HERE THE LOGGING
         metrics['time_delta'] = curr_time - start_time
         metrics["steps_per_section"] = (t_config["EVAL_FREQ"] * t_config["NUM_STEPS"] * t_config["NUM_ENVS"]) / metrics['time_delta']
         wandb.log(metrics, step=metrics["update_count"])
@@ -717,7 +723,8 @@ def main(config):
                 artifact = wandb.Artifact(f'{run.name}-checkpoint', type='checkpoint')
                 artifact.add_file(f'{save_dir}/model.safetensors')
                 artifact.save()
-                
+
+    #------------------------------ SAVE MODEL -----------------------------------
     if config["SAVE_PATH"] is not None:
         params = runner_state[0].params
         
