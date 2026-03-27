@@ -235,7 +235,7 @@ def main(config):
             def _calc_outcomes_by_agent(max_steps: int, dones, returns, info):
                 #jax.debug.breakpoint()
                 idxs = jnp.arange(max_steps)
-                jax.debug.breakpoint()
+                #jax.debug.breakpoint()
                 @partial(jax.vmap, in_axes=(0, 0))
                 def __ep_outcomes(start_idx, end_idx): 
                     mask = (idxs > start_idx) & (idxs <= end_idx) & (end_idx != max_steps)
