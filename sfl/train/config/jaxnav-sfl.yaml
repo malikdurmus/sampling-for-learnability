@@ -7,7 +7,7 @@ defaults:
 "GROUP_NAME": "jaxnav-sfl"
 "ENTITY": ""
 "PROJECT": "multi_robot_ued"
-"WANDB_MODE" : "disabled"
+"WANDB_MODE" : "online"
 "SAVE_PATH": "checkpoints/multi_robot_ued"
 
 env:
@@ -16,8 +16,8 @@ env:
 
 learning:
   # "NUM_ENVS": 256
-  "NUM_ENVS_FROM_SAMPLED": 128
-  "NUM_ENVS_TO_GENERATE": 128
+  "NUM_ENVS_FROM_SAMPLED": 128  #4 #128
+  "NUM_ENVS_TO_GENERATE": 128 #4  #128
 
 # SAMPLE LEARNABILITY 
 "BATCH_SIZE": 1000

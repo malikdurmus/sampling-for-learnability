@@ -74,7 +74,7 @@ def main(config):
         config=config,
         mode=config["WANDB_MODE"],
     )
-        
+
     rng = jax.random.PRNGKey(config["SEED"])
     
     assert (config["learning"]["NUM_ENVS_FROM_SAMPLED"] +  config["learning"]["NUM_ENVS_TO_GENERATE"]) == config["learning"]["NUM_ENVS"]
@@ -107,7 +107,7 @@ def main(config):
         hidden_size=t_config["HIDDEN_SIZE"],
         env_kwargs=config["env"]["env_params"]
     )
-    
+    # 100 instances # map size 11 x 11 (JaxNav Map size)
     with open(config["EVAL_SAMPLED_SET_PATH"], "rb") as f:
       eval_env_instances = pickle.load(f)
     _, eval_init_states = jax.vmap(env.set_env_instance, in_axes=(0))(eval_env_instances)
@@ -134,7 +134,7 @@ def main(config):
     rng, _rng = jax.random.split(rng)
     init_x = (
         jnp.zeros(
-            (1, t_config["NUM_ENVS"], env.lidar_num_beams+5)  # NOTE hardcoded
+            (1, t_config["NUM_ENVS"], env.lidar_num_beams+5)  # NOTE hardcoded (205)
         ),
         jnp.zeros((1, t_config["NUM_ENVS"])),
     )
@@ -157,8 +157,8 @@ def main(config):
     )
 
     rng, _rng = jax.random.split(rng)
-    initial_singleton_test_metrics = eval_singleton_runner.run(_rng, train_state.params)  
-    initial_sampled_test_metrics = eval_sampled_runner.run(_rng, train_state.params)
+    #initial_singleton_test_metrics = eval_singleton_runner.run(_rng, train_state.params)  #
+    #initial_sampled_test_metrics = eval_sampled_runner.run(_rng, train_state.params)      #
 
     # INIT ENV
     rng, _rng = jax.random.split(rng)
@@ -178,7 +178,7 @@ def main(config):
     
     
     @jax.jit
-    def get_learnability_set(rng, network_params):
+    def get_learnability_set(rng, network_params): # TODO learnability set has nan values fix
         
         
         BATCH_ACTORS = config["BATCH_SIZE"] * env.num_agents
@@ -233,8 +233,9 @@ def main(config):
             @partial(jax.vmap, in_axes=(None, 1, 1, 1))
             @partial(jax.jit, static_argnums=(0,))
             def _calc_outcomes_by_agent(max_steps: int, dones, returns, info):
+                #jax.debug.breakpoint()
                 idxs = jnp.arange(max_steps)
-                
+                jax.debug.breakpoint()
                 @partial(jax.vmap, in_axes=(0, 0))
                 def __ep_outcomes(start_idx, end_idx): 
                     mask = (idxs > start_idx) & (idxs <= end_idx) & (end_idx != max_steps)
@@ -255,7 +256,7 @@ def main(config):
                         "collision_rate": collision.mean(where=mask_done),
                         "timeout_rate": timeo.mean(where=mask_done),
                         "ep_len": length.mean(where=mask_done),
-                        }
+                      }
             
             # sample envs
             rng, _rng = jax.random.split(rng)
@@ -291,15 +292,15 @@ def main(config):
             return None, (learnability_by_env, env_instances)
             
         rngs = jax.random.split(rng, config["NUM_BATCHES"])
-        _, (learnability, env_instances) = jax.lax.scan(_batch_step, None, rngs, config["NUM_BATCHES"])
-        
+        #jax.debug.breakpoint()
+        _, (learnability, env_instances) = jax.lax.scan(_batch_step, None, rngs, config["NUM_BATCHES"]) # # TODO learnability set has nan values FIX
         flat_env_instances = jax.tree_util.tree_map(lambda x: x.reshape((-1,) + x.shape[2:]), env_instances)
         learnability = learnability.flatten()
         top_1000 = jnp.argsort(learnability)[-config["NUM_TO_SAVE"]:]
-        print('top 1000', top_1000)
+        jax.debug.print("top 1000 {}", top_1000)
         
         top_1000_instances = jax.tree_util.tree_map(lambda x: x.at[top_1000].get(), flat_env_instances)
-        print('top 1000 instances', top_1000_instances)
+        jax.debug.print('{}top 1000 instances', top_1000_instances)
         return learnability.at[top_1000].get(), top_1000_instances
         
     
@@ -517,7 +518,7 @@ def main(config):
                 lambda x: jnp.take(x, permutation, axis=1), batch
             )
 
-            minibatches = jax.tree_util.tree_map(
+            minibatches = jax.tree_util.tree_map( #shape mismatch? maybe because of args?
                 lambda x: jnp.swapaxes(
                     jnp.reshape(
                         x,
@@ -568,7 +569,7 @@ def main(config):
         rng = update_state[-1]
 
         def callback(metric):
-            wandb.log(
+            run.log(
                 {
                     "train-term": metric["terminations"],
                     #"reward": metric["returned_episode_returns"],
@@ -656,7 +657,7 @@ def main(config):
         im = Image.fromarray(rgba_buffer).convert("RGB")        
     
     
-        wandb.log({"maps": wandb.Image(im)}, step=epoch)
+        run.log({"maps": wandb.Image(im)}, step=epoch)
     
     @jax.jit
     def train_and_eval_step(runner_state, eval_rng):
@@ -665,6 +666,7 @@ def main(config):
         # -----------------------------------TRAIN---------------------------------------------
         learnabilty_scores, instances = get_learnability_set(learnability_rng, runner_state[0].params)
         runner_state_instances = (runner_state, instances)
+        jax.debug.print("learnabilityscores{}" , learnabilty_scores)
         runner_state_instances, metrics = jax.lax.scan(train_step, runner_state_instances, None, t_config["EVAL_FREQ"])
 
 
@@ -709,7 +711,7 @@ def main(config):
         log_buffer(*instances, metrics["update_count"]) # HERE THE LOGGING
         metrics['time_delta'] = curr_time - start_time
         metrics["steps_per_section"] = (t_config["EVAL_FREQ"] * t_config["NUM_STEPS"] * t_config["NUM_ENVS"]) / metrics['time_delta']
-        wandb.log(metrics, step=metrics["update_count"])
+        run.log(metrics, step=metrics["update_count"])
         if (eval_step % checkpoint_steps == 0) & (eval_step > 0):    
             if config["SAVE_PATH"] is not None:
                 params = runner_state[0].params
@@ -740,4 +742,5 @@ def main(config):
     
 
 if __name__ == "__main__":
-    main()
+    with jax.disable_jit(False):
+        main()
