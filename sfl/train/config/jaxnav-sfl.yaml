@@ -20,8 +20,14 @@ learning:
   "NUM_ENVS_TO_GENERATE": 128 #4  #128
 
 # SAMPLE LEARNABILITY 
-"BATCH_SIZE": 1000
-"NUM_BATCHES": 5
-"ROLLOUT_STEPS": 1000
-"NUM_TO_SAVE": 100
+"BATCH_SIZE": 1000 # num of envs to sample for learnability in each batch
+"NUM_BATCHES": 5   # how many batches to do in one learnability sampling
+"ROLLOUT_STEPS": 1000 # how many steps are taken in each environment before scoring the agent (in a batch)
+"NUM_TO_SAVE": 100 # how many times
 "EVAL_SAMPLED_SET_PATH": "sfl/data/test_sets/sampled_tc_100e_1a.pkl"
+# the number of times learnability batches are sampled is given by
+# num updates // EVAL FREq =
+#                           = "TOTAL_TIMESTEPS" // "NUM_STEPS" // "NUM_ENVS"]
+
+# with default params its 45
+#
