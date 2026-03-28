@@ -186,7 +186,7 @@ class EvalSingletonsRunner:
              ep_done,
              info) = step
             print('info', info)
-            ep_stats = self._update_ep_stats(ep_stats, ep_done, jax.tree_map(lambda x: x.sum(axis=-1), info), 1) 
+            ep_stats = self._update_ep_stats(ep_stats, ep_done, jax.tree.map(lambda x: x.sum(axis=-1), info), 1) 
         
             return (next_state, next_obs, done, next_carry, ep_stats), (obs, state, reward, done, ep_done, info)
 
@@ -245,10 +245,10 @@ class EvalSingletonsRunner:
                 state,
                 ep_stats)
 
-            info_by_actor = jax.tree_map(lambda x: x.swapaxes(1, 2).reshape((-1, env.num_agents*self.n_parallel)), info)
+            info_by_actor = jax.tree.map(lambda x: x.swapaxes(1, 2).reshape((-1, env.num_agents*self.n_parallel)), info)
             o = self._calc_outcomes_by_agent(env.max_steps, dones, reward, info_by_actor)
-            o_by_env = jax.tree_map(lambda x: x.reshape((env.num_agents, self.n_parallel)), o)
-            o_mean = jax.tree_map(lambda x: (x*o_by_env["num_episodes"]).sum(axis=1)/o_by_env["num_episodes"].sum(axis=1), o_by_env)               
+            o_by_env = jax.tree.map(lambda x: x.reshape((env.num_agents, self.n_parallel)), o)
+            o_mean = jax.tree.map(lambda x: (x*o_by_env["num_episodes"]).sum(axis=1)/o_by_env["num_episodes"].sum(axis=1), o_by_env)               
             win_rates = win_rates.at[i].set(o_mean["success_rate"].mean())
             eval_stats[f'eval/:{self.test_len_pre}:{self.env_ids[i]}'] = o_mean["ep_len"].mean()
             eval_stats[f'eval/:{self.test_return_pre}:{self.env_ids[i]}'] = o_mean["ep_return"]
@@ -301,10 +301,10 @@ class EvalSingletonsRunner:
                 state,
                 ep_stats)            
             
-            info_by_actor = jax.tree_map(lambda x: x.swapaxes(1, 2).reshape((-1, env.num_agents*self.n_parallel)), info)
+            info_by_actor = jax.tree.map(lambda x: x.swapaxes(1, 2).reshape((-1, env.num_agents*self.n_parallel)), info)
             o = self._calc_outcomes_by_agent(env.max_steps, dones, reward, info_by_actor)
-            o_by_env = jax.tree_map(lambda x: x.reshape((env.num_agents, self.n_parallel)), o)
-            o_mean = jax.tree_map(lambda x: (x*o_by_env["num_episodes"]).sum(axis=1)/o_by_env["num_episodes"].sum(axis=1), o_by_env)
+            o_by_env = jax.tree.map(lambda x: x.reshape((env.num_agents, self.n_parallel)), o)
+            o_mean = jax.tree.map(lambda x: (x*o_by_env["num_episodes"]).sum(axis=1)/o_by_env["num_episodes"].sum(axis=1), o_by_env)
             
             o_mean["success_rate"].mean()
             dones = dones.reshape((-1, self.n_parallel, env.num_agents), order='F')
@@ -317,8 +317,8 @@ class EvalSingletonsRunner:
             first_ep_done = np.argwhere(ep_dones[:,0])[0][0]
             done_frames = np.argmax(dones[:first_ep_done+1, 0], axis=0)
             
-            obs_list = [jax.tree_map(lambda x: x[i][0], obs) for i in range(first_ep_done+1)]
-            state_list = [jax.tree_map(lambda x: x[i][0], states) for i in range(first_ep_done+1)]
+            obs_list = [jax.tree.map(lambda x: x[i][0], obs) for i in range(first_ep_done+1)]
+            state_list = [jax.tree.map(lambda x: x[i][0], states) for i in range(first_ep_done+1)]
             
             viz = JaxNavVisualizer(
                     env,
@@ -367,7 +367,7 @@ class EvalSingletonsRunner:
             return r, success, collision, timeo, l
         
         done_idxs = jnp.argwhere(dones, size=10, fill_value=max_steps).squeeze()
-        mask_done = jnp.where(done_idxs == max_steps, 0, 1)
+        mask_done = jnp.where(done_idxs == max_steps, False, True)
         ep_return, success, collision, timeo, length = __ep_outcomes(jnp.concatenate([jnp.array([-1]), done_idxs[:-1]]), done_idxs)        
                 
         return {"ep_return": ep_return.mean(where=mask_done),

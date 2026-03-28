@@ -86,13 +86,13 @@ class EvalSampledRunner:
         else:
             self.num_actors = self.env.num_agents * self.n_parallel
         
-        env_init_states = jax.tree_map(lambda x: jnp.repeat(x[:, None], self.n_episodes, axis=1), env_init_states)
-        self.env_init_states = jax.tree_map(
+        env_init_states = jax.tree.map(lambda x: jnp.repeat(x[:, None], self.n_episodes, axis=1), env_init_states)
+        self.env_init_states = jax.tree.map(
             lambda x: x.reshape([self.n_parallel] + list(x.shape[2:])), env_init_states
         )
         
-        env_init_obs = jax.tree_map(lambda x: jnp.repeat(x[:, None], self.n_episodes, axis=1), env_init_obs)
-        self.env_init_obs = jax.tree_map(
+        env_init_obs = jax.tree.map(lambda x: jnp.repeat(x[:, None], self.n_episodes, axis=1), env_init_obs)
+        self.env_init_obs = jax.tree.map(
             lambda x: x.reshape([self.n_parallel] + list(x.shape[2:])), env_init_obs
         )    
     
@@ -126,10 +126,10 @@ class EvalSampledRunner:
         if self.is_minigrid:
             obs_batch = obs
             ac_in = (
-                jax.tree_map(lambda x: x[np.newaxis, np.newaxis], obs_batch),
+                jax.tree.map(lambda x: x[np.newaxis, np.newaxis], obs_batch),
                 done[np.newaxis, np.newaxis],
             )
-            carry = jax.tree_map(lambda x: x[np.newaxis], carry)
+            carry = jax.tree.map(lambda x: x[np.newaxis], carry)
         else:
             obs_batch = batchify(obs, self.env.agents, self.env.num_agents)
             ac_in = (
@@ -139,7 +139,7 @@ class EvalSampledRunner:
         if self.is_minigrid:
             print("shape here", done.shape, obs.image.shape)
             carry, pi, _ = self.network.apply(params, ac_in, carry)
-            carry = jax.tree_map(lambda x: x.squeeze(), carry)
+            carry = jax.tree.map(lambda x: x.squeeze(), carry)
         else:
             if self.seperate_critic:
                 carry, pi, _ = self.network.apply(params, carry, ac_in)
@@ -215,7 +215,7 @@ class EvalSampledRunner:
              done, 
              ep_done,
              info) = step
-            ep_stats = self._update_ep_stats(ep_stats, ep_done, jax.tree_map(lambda x: x.sum(), info), 1) 
+            ep_stats = self._update_ep_stats(ep_stats, ep_done, jax.tree.map(lambda x: x.sum(), info), 1)
             return (next_state, next_obs, done, ep_done, next_carry, ep_stats), (obs, state, reward, done, ep_done, info)
 
         if self.is_minigrid:
@@ -287,17 +287,17 @@ class EvalSampledRunner:
             zero_carry,
             ep_stats
         )
-        info_by_actor = jax.tree_map(lambda x: jnp.moveaxis(x, 0, 1).reshape((-1, self.num_actors)), info)
+        info_by_actor = jax.tree.map(lambda x: jnp.moveaxis(x, 0, 1).reshape((-1, self.num_actors)), info)
         reward_by_actor = jnp.moveaxis(reward, 0, 1).reshape((-1, self.num_actors))
         dones_by_actor = jnp.moveaxis(dones, 0, 1).reshape((-1, self.num_actors))
         
         o = self._calc_outcomes_by_agent(self.env.max_steps if not self.is_minigrid else self.env.default_params.max_steps_in_episode, dones_by_actor, reward_by_actor, info_by_actor)
 
         num_agents = self.env.num_agents if not self.is_minigrid else 1        
-        o_grouped_by_episodes = jax.tree_map(lambda x: x.reshape((self.n_envs, self.n_episodes, num_agents)), o)
-        o_by_env_and_actor = jax.tree_map(lambda x: (x*o_grouped_by_episodes["num_episodes"]).sum(axis=1)/o_grouped_by_episodes["num_episodes"].sum(axis=1), o_grouped_by_episodes)
-        o_by_actor = jax.tree_map(lambda x: x.reshape(-1), o_by_env_and_actor)
-        o_by_env = jax.tree_map(lambda x: x.mean(axis=-1), o_by_env_and_actor)
+        o_grouped_by_episodes = jax.tree.map(lambda x: x.reshape((self.n_envs, self.n_episodes, num_agents)), o)
+        o_by_env_and_actor = jax.tree.map(lambda x: (x*o_grouped_by_episodes["num_episodes"]).sum(axis=1)/o_grouped_by_episodes["num_episodes"].sum(axis=1), o_grouped_by_episodes)
+        o_by_actor = jax.tree.map(lambda x: x.reshape(-1), o_by_env_and_actor)
+        o_by_env = jax.tree.map(lambda x: x.mean(axis=-1), o_by_env_and_actor)
         
         eval_stats[f'eval-sampled/win_rates'] = o_by_actor["success_rate"]
         eval_stats[f'eval-sampled/c_rates'] = o_by_actor["collision_rate"]
@@ -338,19 +338,19 @@ class EvalSampledRunner:
             zero_carry,
             ep_stats
         )
-        info_by_actor = jax.tree_map(lambda x: jnp.moveaxis(x, 0, 1).reshape((-1, self.num_actors)), info)
+        info_by_actor = jax.tree.map(lambda x: jnp.moveaxis(x, 0, 1).reshape((-1, self.num_actors)), info)
         reward_by_actor = jnp.moveaxis(reward, 0, 1).reshape((-1, self.num_actors))
         dones_by_actor = jnp.moveaxis(dones, 0, 1).reshape((-1, self.num_actors))
         
         
         o = self._calc_outcomes_by_agent(self.env.max_steps, dones_by_actor, reward_by_actor, info_by_actor)
-        o_grouped_by_episodes = jax.tree_map(lambda x: x.reshape((self.n_envs, self.n_episodes, self.env.num_agents)), o)
-        o_by_env_and_actor = jax.tree_map(lambda x: (x*o_grouped_by_episodes["num_episodes"]).sum(axis=1)/o_grouped_by_episodes["num_episodes"].sum(axis=1), o_grouped_by_episodes)
-        o_by_actor = jax.tree_map(lambda x: x.reshape(-1), o_by_env_and_actor)
-        o_by_env = jax.tree_map(lambda x: x.mean(axis=-1), o_by_env_and_actor)
+        o_grouped_by_episodes = jax.tree.map(lambda x: x.reshape((self.n_envs, self.n_episodes, self.env.num_agents)), o)
+        o_by_env_and_actor = jax.tree.map(lambda x: (x*o_grouped_by_episodes["num_episodes"]).sum(axis=1)/o_grouped_by_episodes["num_episodes"].sum(axis=1), o_grouped_by_episodes)
+        o_by_actor = jax.tree.map(lambda x: x.reshape(-1), o_by_env_and_actor)
+        o_by_env = jax.tree.map(lambda x: x.mean(axis=-1), o_by_env_and_actor)
         
-        # o_by_env = jax.tree_map(lambda x: x.reshape((self.n_envs, self.n_episodes, self.env.num_agents)), o)
-        # o_mean = jax.tree_map(lambda x: (x*o_by_env["num_episodes"]).sum(axis=1)/o_by_env["num_episodes"].sum(axis=1), o_by_env)
+        # o_by_env = jax.tree.map(lambda x: x.reshape((self.n_envs, self.n_episodes, self.env.num_agents)), o)
+        # o_mean = jax.tree.map(lambda x: (x*o_by_env["num_episodes"]).sum(axis=1)/o_by_env["num_episodes"].sum(axis=1), o_by_env)
         eval_stats[f'eval-sampled/win_rates'] = o_by_actor["success_rate"]
         eval_stats[f'eval-sampled/c_rates'] = o_by_actor["collision_rate"]
         eval_stats[f'eval-sampled/to_rates'] = o_by_actor["timeout_rate"]
@@ -375,8 +375,8 @@ class EvalSampledRunner:
             first_ep_done = np.argwhere(ep_dones[idx,:]).flatten()[0]
             done_frames = np.argmax(dones[idx, :first_ep_done+1], axis=0)
             
-            obs_list = [jax.tree_map(lambda x: x[idx][j], obs) for j in range(first_ep_done+1)]
-            state_list = [jax.tree_map(lambda x: x[idx][j], states) for j in range(first_ep_done+1)]
+            obs_list = [jax.tree.map(lambda x: x[idx][j], obs) for j in range(first_ep_done+1)]
+            state_list = [jax.tree.map(lambda x: x[idx][j], states) for j in range(first_ep_done+1)]
             
             title = f'{run_name}-{i}\n{o_by_env_and_actor["success_rate"][i]}' 
             
@@ -432,7 +432,7 @@ class EvalSampledRunner:
             return r, success, collision, timeo, l
         
         done_idxs = jnp.argwhere(dones, size=100, fill_value=max_steps).squeeze()
-        mask_done = jnp.where(done_idxs == max_steps, 0, 1)
+        mask_done = jnp.where(done_idxs == max_steps, False, True)
         ep_return, success, collision, timeo, length = __ep_outcomes(jnp.concatenate([jnp.array([-1]), done_idxs[:-1]]), done_idxs)        
                 
         return {"ep_return": ep_return.mean(where=mask_done),
@@ -470,19 +470,19 @@ class EvalSampledRunnerMinigrid(EvalSampledRunner):
             zero_carry,
             ep_stats
         )
-        info_by_actor = jax.tree_map(lambda x: jnp.moveaxis(x, 0, 1).reshape((-1, self.num_actors)), info)
+        info_by_actor = jax.tree.map(lambda x: jnp.moveaxis(x, 0, 1).reshape((-1, self.num_actors)), info)
         reward_by_actor = jnp.moveaxis(reward, 0, 1).reshape((-1, self.num_actors))
         dones_by_actor = jnp.moveaxis(dones, 0, 1).reshape((-1, self.num_actors))
         
         num_agents = self.env.num_agents if not self.is_minigrid else 1       
         o = self._calc_outcomes_by_agent(self.env.max_steps if not self.is_minigrid else self.env.default_params.max_steps_in_episode, dones_by_actor, reward_by_actor, info_by_actor)
-        o_grouped_by_episodes = jax.tree_map(lambda x: x.reshape((self.n_envs, self.n_episodes, num_agents)), o)
-        o_by_env_and_actor = jax.tree_map(lambda x: (x*o_grouped_by_episodes["num_episodes"]).sum(axis=1)/o_grouped_by_episodes["num_episodes"].sum(axis=1), o_grouped_by_episodes)
-        o_by_actor = jax.tree_map(lambda x: x.reshape(-1), o_by_env_and_actor)
-        o_by_env = jax.tree_map(lambda x: x.mean(axis=-1), o_by_env_and_actor)
+        o_grouped_by_episodes = jax.tree.map(lambda x: x.reshape((self.n_envs, self.n_episodes, num_agents)), o)
+        o_by_env_and_actor = jax.tree.map(lambda x: (x*o_grouped_by_episodes["num_episodes"]).sum(axis=1)/o_grouped_by_episodes["num_episodes"].sum(axis=1), o_grouped_by_episodes)
+        o_by_actor = jax.tree.map(lambda x: x.reshape(-1), o_by_env_and_actor)
+        o_by_env = jax.tree.map(lambda x: x.mean(axis=-1), o_by_env_and_actor)
         
-        # o_by_env = jax.tree_map(lambda x: x.reshape((self.n_envs, self.n_episodes, self.env.num_agents)), o)
-        # o_mean = jax.tree_map(lambda x: (x*o_by_env["num_episodes"]).sum(axis=1)/o_by_env["num_episodes"].sum(axis=1), o_by_env)
+        # o_by_env = jax.tree.map(lambda x: x.reshape((self.n_envs, self.n_episodes, self.env.num_agents)), o)
+        # o_mean = jax.tree.map(lambda x: (x*o_by_env["num_episodes"]).sum(axis=1)/o_by_env["num_episodes"].sum(axis=1), o_by_env)
         eval_stats[f'eval-sampled/win_rates'] = o_by_actor["success_rate"]
         eval_stats[f'eval-sampled/c_rates'] = o_by_actor["collision_rate"]
         eval_stats[f'eval-sampled/to_rates'] = o_by_actor["timeout_rate"]
@@ -506,8 +506,8 @@ class EvalSampledRunnerMinigrid(EvalSampledRunner):
             first_ep_done = np.argwhere(ep_dones[idx,:]).flatten()[0]
             # done_frames = np.argmax(dones[idx, :first_ep_done+1], axis=0)
             
-            # obs_list = [jax.tree_map(lambda x: x[idx][j], obs) for j in range(first_ep_done+1)]
-            state_list = [jax.tree_map(lambda x: x[idx][j], states.env_state) for j in range(first_ep_done+1)]
+            # obs_list = [jax.tree.map(lambda x: x[idx][j], obs) for j in range(first_ep_done+1)]
+            state_list = [jax.tree.map(lambda x: x[idx][j], states.env_state) for j in range(first_ep_done+1)]
             
             title = f'{run_name}-{i}\n{o_by_env_and_actor["success_rate"][i]}' 
             

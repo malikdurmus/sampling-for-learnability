@@ -233,9 +233,7 @@ def main(config):
             @partial(jax.vmap, in_axes=(None, 1, 1, 1))
             @partial(jax.jit, static_argnums=(0,))
             def _calc_outcomes_by_agent(max_steps: int, dones, returns, info):
-                #jax.debug.breakpoint()
                 idxs = jnp.arange(max_steps)
-                #jax.debug.breakpoint()
                 @partial(jax.vmap, in_axes=(0, 0))
                 def __ep_outcomes(start_idx, end_idx): 
                     mask = (idxs > start_idx) & (idxs <= end_idx) & (end_idx != max_steps)
@@ -244,12 +242,16 @@ def main(config):
                     collision = jnp.sum((info["MapC"] + info["AgentC"]) * mask)
                     timeo = jnp.sum(info["TimeO"] * mask)
                     l = end_idx - start_idx
+                    jax.debug.breakpoint()
                     return r, success, collision, timeo, l
                 
                 done_idxs = jnp.argwhere(dones, size=10, fill_value=max_steps).squeeze()
-                mask_done = jnp.where(done_idxs == max_steps, 0, 1)
+                mask_done = jnp.where(done_idxs == max_steps, True, False)
+                #mask_done = jnp.nonzero(done_idxs != max_steps, size = max_steps)
+                #jax.debug.breakpoint()
                 ep_return, success, collision, timeo, length = __ep_outcomes(jnp.concatenate([jnp.array([-1]), done_idxs[:-1]]), done_idxs)        
-                        
+                #jax.debug.breakpoint()
+
                 return {"ep_return": ep_return.mean(where=mask_done),
                         "num_episodes": mask_done.sum(),
                         "success_rate": success.mean(where=mask_done),
@@ -271,7 +273,7 @@ def main(config):
             )
             
             init_hstate = ScannedRNN.initialize_carry(BATCH_ACTORS, t_config["HIDDEN_SIZE"])
-            
+            #jax.debug.breakpoint()
             runner_state = (env_state, env_state, obsv, jnp.zeros((BATCH_ACTORS), dtype=bool), init_hstate, rng)
             runner_state, traj_batch = jax.lax.scan(
                 _env_step, runner_state, None, config["ROLLOUT_STEPS"]
@@ -280,26 +282,29 @@ def main(config):
             print('traj batch info', traj_batch.info["NumC"].shape)
             done_by_env = traj_batch.done.reshape((-1, env.num_agents, config["BATCH_SIZE"]))
             reward_by_env = traj_batch.reward.reshape((-1, env.num_agents, config["BATCH_SIZE"]))
-            info_by_actor = jax.tree_util.tree_map(lambda x: x.swapaxes(2, 1).reshape((-1, BATCH_ACTORS)), traj_batch.info)
+            info_by_actor = jax.tree.map(lambda x: x.swapaxes(2, 1).reshape((-1, BATCH_ACTORS)), traj_batch.info)
             print('done_by_env', done_by_env.shape)
             print('reward_by_env', reward_by_env.shape)
             print('info_by_actor', info_by_actor)
             o = _calc_outcomes_by_agent(config["ROLLOUT_STEPS"], traj_batch.done, traj_batch.reward, info_by_actor)
-            print('o', o)
+            print('ooutcomes', o)
+            #jax.debug.breakpoint()
             success_by_env = o["success_rate"].reshape((env.num_agents, config["BATCH_SIZE"]))
             learnability_by_env = (success_by_env * (1 - success_by_env)).sum(axis=0)
+
             print('learnability_by_env', learnability_by_env)
             return None, (learnability_by_env, env_instances)
             
         rngs = jax.random.split(rng, config["NUM_BATCHES"])
         #jax.debug.breakpoint()
         _, (learnability, env_instances) = jax.lax.scan(_batch_step, None, rngs, config["NUM_BATCHES"]) # # TODO learnability set has nan values FIX
-        flat_env_instances = jax.tree_util.tree_map(lambda x: x.reshape((-1,) + x.shape[2:]), env_instances)
+        flat_env_instances = jax.tree.map(lambda x: x.reshape((-1,) + x.shape[2:]), env_instances)
         learnability = learnability.flatten()
+        ###jax.debug.breakpoint()
         top_1000 = jnp.argsort(learnability)[-config["NUM_TO_SAVE"]:]
         jax.debug.print("top 1000 {}", top_1000)
         
-        top_1000_instances = jax.tree_util.tree_map(lambda x: x.at[top_1000].get(), flat_env_instances)
+        top_1000_instances = jax.tree.map(lambda x: x.at[top_1000].get(), flat_env_instances)
         jax.debug.print('{}top 1000 instances', top_1000_instances)
         return learnability.at[top_1000].get(), top_1000_instances
         
@@ -360,7 +365,7 @@ def main(config):
             _env_step, runner_state, None, t_config["NUM_STEPS"]
         )
         traj_batch, dormancy = traj_batch_dormancy
-        dormancy = jax.tree_util.tree_map(lambda x: x.mean(), dormancy)
+        dormancy = jax.tree.map(lambda x: x.mean(), dormancy)
         
         @partial(jax.vmap, in_axes=(1, 1))
         def _calc_ep_return_by_agent(dones, returns):
@@ -374,7 +379,7 @@ def main(config):
                 return r, l
             
             done_idxs = jnp.argwhere(dones, size=t_config["NUM_STEPS"]//4, fill_value=t_config["NUM_STEPS"]).squeeze()
-            mask_done = jnp.where(done_idxs == t_config["NUM_STEPS"], 0, 1)
+            mask_done = jnp.where(done_idxs == t_config["NUM_STEPS"], False, True)
             r, l = __ep_returns(returns, jnp.concatenate([jnp.array([-1]), done_idxs[:-1]]), done_idxs)                
             return {"episodic_return_per_agent": r.mean(where=mask_done), "episodic_length_per_agent": l.mean(where=mask_done)}
         
@@ -383,7 +388,7 @@ def main(config):
         else:
             reward_by_env = traj_batch.reward
         episodic_return_length = _calc_ep_return_by_agent(traj_batch.done, reward_by_env)
-        episodic_return_length = jax.tree_util.tree_map(lambda x: x.mean(), episodic_return_length)
+        episodic_return_length = jax.tree.map(lambda x: x.mean(), episodic_return_length)
         # CALCULATE ADVANTAGE
         train_state, env_state, start_state, last_obs, last_done, hstate, update_steps, rng = runner_state
         last_obs_batch = batchify(last_obs, env.agents, t_config["NUM_ACTORS"])
@@ -445,19 +450,19 @@ def main(config):
                         value_losses, value_losses_clipped
                     )
                     if env.do_sep_reward:
-                        value_loss_sparse = value_loss[..., REWARD_COMPONENT_SPARSE].mean(where=(1 - traj_batch.mask))
-                        value_loss_dense  = value_loss[..., REWARD_COMPONENT_DENSE].mean(where=(1 - traj_batch.mask))
+                        value_loss_sparse = value_loss[..., REWARD_COMPONENT_SPARSE].mean(where=( jnp.logical_not(traj_batch.mask) ))
+                        value_loss_dense  = value_loss[..., REWARD_COMPONENT_DENSE].mean(where=( jnp.logical_not(traj_batch.mask) ))
                         
                         critic_loss = t_config["VF_COEF"] * (value_loss_sparse + value_loss_dense)
                     else:
-                        critic_loss = t_config["VF_COEF"] * value_loss.mean(where=(1 - traj_batch.mask))
+                        critic_loss = t_config["VF_COEF"] * value_loss.mean(where=(jnp.logical_not(traj_batch.mask)))
                     
                     # CALCULATE ACTOR LOSS
                     logratio = log_prob - traj_batch.log_prob
                     ratio = jnp.exp(logratio)
                     if env.do_sep_reward:
                         gae = gae.sum(axis=-1)
-                    gae = (gae - gae.mean(where=(1-traj_batch.mask))) / (gae.std(where=(1-traj_batch.mask)) + 1e-8)
+                    gae = (gae - gae.mean(where=(jnp.logical_not(traj_batch.mask)))) / (gae.std(where=(jnp.logical_not(traj_batch.mask))) + 1e-8)
                     loss_actor1 = ratio * gae
                     loss_actor2 = (
                         jnp.clip(
@@ -468,8 +473,8 @@ def main(config):
                         * gae
                     )
                     loss_actor = -jnp.minimum(loss_actor1, loss_actor2)
-                    loss_actor = loss_actor.mean(where=(1 - traj_batch.mask))
-                    entropy = pi.entropy().mean(where=(1 - traj_batch.mask))
+                    loss_actor = loss_actor.mean(where=(jnp.logical_not(traj_batch.mask)))
+                    entropy = pi.entropy().mean(where=(jnp.logical_not(traj_batch.mask)))
                     
                     # debug
                     approx_kl = jax.lax.stop_gradient(
@@ -514,11 +519,11 @@ def main(config):
             )
             permutation = jax.random.permutation(_rng, t_config["NUM_ACTORS"])
 
-            shuffled_batch = jax.tree_util.tree_map(
+            shuffled_batch = jax.tree.map(
                 lambda x: jnp.take(x, permutation, axis=1), batch
             )
 
-            minibatches = jax.tree_util.tree_map( #shape mismatch? maybe because of args?
+            minibatches = jax.tree.map( #shape mismatch? maybe because of args?
                 lambda x: jnp.swapaxes(
                     jnp.reshape(
                         x,
@@ -534,7 +539,7 @@ def main(config):
             train_state, total_loss = jax.lax.scan(
                 _update_minbatch, train_state, minibatches
             )
-            # total_loss = jax.tree_util.tree_map(lambda x: x.mean(), total_loss)
+            # total_loss = jax.tree.map(lambda x: x.mean(), total_loss)
             update_state = (
                 train_state,
                 init_hstate,
@@ -546,7 +551,7 @@ def main(config):
             return update_state, total_loss
 
         # init_hstate = initial_hstate[None, :].squeeze().transpose()
-        init_hstate = jax.tree_util.tree_map(lambda x: x[None, :].squeeze().transpose(), initial_hstate)
+        init_hstate = jax.tree.map(lambda x: x[None, :].squeeze().transpose(), initial_hstate)
         update_state = (
             train_state,
             init_hstate,
@@ -560,7 +565,7 @@ def main(config):
         )
         train_state = update_state[0]
         metric = traj_batch.info
-        metric = jax.tree_util.tree_map(
+        metric = jax.tree.map(
             lambda x: x.sum(axis=-1).reshape(
                 (t_config["NUM_STEPS"], t_config["NUM_ENVS"])  # , env.num_agents
             ),
@@ -596,7 +601,7 @@ def main(config):
             "critic": dormancy.critic,
         }
         ratio0 = jnp.around(loss_info[1][3].at[0,0].get().mean(), decimals=6)
-        loss_info = jax.tree_util.tree_map(lambda x: x.mean(), loss_info)
+        loss_info = jax.tree.map(lambda x: x.mean(), loss_info)
         metric["loss_info"] = {
             "total_loss": loss_info[0],
             "value_loss": loss_info[1][0],
@@ -611,9 +616,9 @@ def main(config):
         metric["episodic_return_length"] = episodic_return_length
         metric["update_steps"] = update_steps
         metric["terminations"] = {k: traj_batch.info[k] for k in ["NumC", "GoalR", "AgentC", "MapC", "TimeO"]}
-        metric["terminations"] = jax.tree_util.tree_map(lambda x: x.sum(), metric["terminations"])
+        metric["terminations"] = jax.tree.map(lambda x: x.sum(), metric["terminations"])
         metric["dormancy"] = dormancy_log
-        metric["env-metrics"] = jax.tree_util.tree_map(lambda x: x.mean(), jax.vmap(env.get_env_metrics)(start_state))
+        metric["env-metrics"] = jax.tree.map(lambda x: x.mean(), jax.vmap(env.get_env_metrics)(start_state))
         metric["mean_lambda_val"] = env_state.rew_lambda.mean()
         jax.experimental.io_callback(callback, None, metric)
         
@@ -624,11 +629,11 @@ def main(config):
         
         rng, _rng = jax.random.split(rng)
         sampled_env_instances_idxs = jax.random.randint(_rng, (t_config["NUM_ENVS_FROM_SAMPLED"],), 0, num_env_instances)
-        sampled_env_instances = jax.tree_util.tree_map(lambda x: x.at[sampled_env_instances_idxs].get(), instances)
+        sampled_env_instances = jax.tree.map(lambda x: x.at[sampled_env_instances_idxs].get(), instances)
         obsv_sampled, env_state_sampled = jax.vmap(env.set_env_instance, in_axes=(0,))(sampled_env_instances)
         
-        obsv = jax.tree_util.tree_map(lambda x, y: jnp.concatenate([x, y], axis=0), obsv_gen, obsv_sampled)
-        env_state = jax.tree_util.tree_map(lambda x, y: jnp.concatenate([x, y], axis=0), env_state_gen, env_state_sampled)
+        obsv = jax.tree.map(lambda x, y: jnp.concatenate([x, y], axis=0), obsv_gen, obsv_sampled)
+        env_state = jax.tree.map(lambda x, y: jnp.concatenate([x, y], axis=0), env_state_gen, env_state_sampled)
         
         start_state = env_state
         hstate = ScannedRNN.initialize_carry(t_config["NUM_ACTORS"], t_config["HIDDEN_SIZE"])
@@ -645,7 +650,7 @@ def main(config):
         for i, ax in enumerate(axes):
             # ax.imshow(train_state.plr_buffer.get_sample(i))
             score = learnability[i]            
-            state = jax.tree_util.tree_map(lambda x: x[i], states)
+            state = jax.tree.map(lambda x: x[i], states)
                         
             env.init_render(ax, state, lidar=False, ticks_off=True)
             ax.set_title(f'learnability: {score:.3f}')
@@ -666,7 +671,7 @@ def main(config):
         # -----------------------------------TRAIN---------------------------------------------
         learnabilty_scores, instances = get_learnability_set(learnability_rng, runner_state[0].params)
         runner_state_instances = (runner_state, instances)
-        jax.debug.print("learnabilityscores{}" , learnabilty_scores)
+        ##jax.debug.print("learnabilityscores{}" , learnabilty_scores)
         runner_state_instances, metrics = jax.lax.scan(train_step, runner_state_instances, None, t_config["EVAL_FREQ"])
 
 
@@ -683,7 +688,7 @@ def main(config):
         runner_state, _ = runner_state_instances
         test_metrics["update_count"] = runner_state[-2]
         
-        top_instances = jax.tree_util.tree_map(lambda x: x.at[-20:].get(), instances)
+        top_instances = jax.tree.map(lambda x: x.at[-20:].get(), instances)
         _, top_states = jax.vmap(env.set_env_instance)(top_instances)
         
         return runner_state, (learnabilty_scores.at[-20:].get(), top_states), test_metrics

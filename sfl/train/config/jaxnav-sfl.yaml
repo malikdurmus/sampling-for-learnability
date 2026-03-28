@@ -7,7 +7,7 @@ defaults:
 "GROUP_NAME": "jaxnav-sfl"
 "ENTITY": ""
 "PROJECT": "jaxnavlatestjax"
-"WANDB_MODE" : "online"
+"WANDB_MODE" : "disabled"
 "SAVE_PATH": "checkpoints/multi_robot_ued"
 
 env:
@@ -24,4 +24,4 @@ learning:
 "NUM_BATCHES": 5
 "ROLLOUT_STEPS": 1000
 "NUM_TO_SAVE": 100
-"EVAL_SAMPLED_SET_PATH": "sfl/data/test_sets/sampled_tc_100e_1a.pkl"
+"EVAL_SAMPLED_SET_PATH": "sfl/data/test_sets/sampled_tc_100e_1a_np.pkl"
