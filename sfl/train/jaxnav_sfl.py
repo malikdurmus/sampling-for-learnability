@@ -1,7 +1,9 @@
 """
 Run SFL on JaxNav, both single and multi-agent variations.
 """
-
+import os
+#os.environ['XLA_FLAGS'] = '--xla_gpu_autotune_level=0'
+#os.environ['XLA_PYTHON_CLIENT_PREALLOCATE'] = 'false'
 import jax
 import jax.experimental
 import jax.numpy as jnp
@@ -178,7 +180,7 @@ def main(config):
     
     
     @jax.jit
-    def get_learnability_set(rng, network_params): # TODO learnability set has nan values fix
+    def get_learnability_set(rng, network_params): #
         
         
         BATCH_ACTORS = config["BATCH_SIZE"] * env.num_agents
@@ -271,7 +273,7 @@ def main(config):
                 map_data=env_state.map_data,
                 rew_lambda=env_state.rew_lambda,
             )
-            
+            #### start here
             init_hstate = ScannedRNN.initialize_carry(BATCH_ACTORS, t_config["HIDDEN_SIZE"])
             #jax.debug.breakpoint()
             runner_state = (env_state, env_state, obsv, jnp.zeros((BATCH_ACTORS), dtype=bool), init_hstate, rng)
@@ -419,7 +421,6 @@ def main(config):
                 (jnp.zeros_like(last_val), last_val),
                 traj_batch,
                 reverse=True,
-                unroll=16,
             )
             return advantages, advantages + traj_batch.value
 
@@ -677,20 +678,23 @@ def main(config):
 
 
         # --------------------------------------EVAL-----------------------------------------
-        
+        #jax.debug.breakpoint() #np
         test_metrics = {
             "learnability_set_scores": learnabilty_scores,
             "learnability_set_mean_score": learnabilty_scores.mean(),
         }
+        #jax.debug.breakpoint() #np learnability scores healthy no nan
         test_metrics["singleton-test-metrics"] = eval_singleton_runner.run(eval_singleton_rng, runner_state[0].params)
         test_metrics["sampled-test-metrics"] = eval_sampled_runner.run(eval_sampled_rng, runner_state[0].params)
-        
+        #jax.debug.breakpoint()
+
         runner_state, _ = runner_state_instances
         test_metrics["update_count"] = runner_state[-2]
-        
+        #jax.debug.breakpoint()
+
         top_instances = jax.tree.map(lambda x: x.at[-20:].get(), instances)
         _, top_states = jax.vmap(env.set_env_instance)(top_instances)
-        
+        print("train eval steps returns line reached")
         return runner_state, (learnabilty_scores.at[-20:].get(), top_states), test_metrics
     
     rng, _rng = jax.random.split(rng)
@@ -713,10 +717,14 @@ def main(config):
         rng, eval_rng = jax.random.split(rng)
         runner_state, instances, metrics = train_and_eval_step(runner_state, eval_rng) # TRAINING AND EVAL HAPPENS IN ONE STEP
         curr_time = time.time()
-        log_buffer(*instances, metrics["update_count"]) # HERE THE LOGGING
-        metrics['time_delta'] = curr_time - start_time
-        metrics["steps_per_section"] = (t_config["EVAL_FREQ"] * t_config["NUM_STEPS"] * t_config["NUM_ENVS"]) / metrics['time_delta']
-        run.log(metrics, step=metrics["update_count"])
+        print('reached 716')
+        #jax.debug.breakpoint()
+        log_buffer(*instances, metrics["update_count"]) # HERE THE LOGGING here no problem 
+        metrics['time_delta'] = curr_time - start_time #ok
+        metrics["steps_per_section"] = (t_config["EVAL_FREQ"] * t_config["NUM_STEPS"] * t_config["NUM_ENVS"]) / metrics['time_delta'] #ok 
+        #jax.debug.breakpoint()
+        run.log(metrics, step=metrics["update_count"]) #here the wandb err
+        print('reached 721')
         if (eval_step % checkpoint_steps == 0) & (eval_step > 0):    
             if config["SAVE_PATH"] is not None:
                 params = runner_state[0].params
@@ -731,6 +739,7 @@ def main(config):
                 artifact.add_file(f'{save_dir}/model.safetensors')
                 artifact.save()
 
+    print('reached 736')
     #------------------------------ SAVE MODEL -----------------------------------
     if config["SAVE_PATH"] is not None:
         params = runner_state[0].params
