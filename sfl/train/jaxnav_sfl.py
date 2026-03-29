@@ -242,11 +242,11 @@ def main(config):
                     collision = jnp.sum((info["MapC"] + info["AgentC"]) * mask)
                     timeo = jnp.sum(info["TimeO"] * mask)
                     l = end_idx - start_idx
-                    jax.debug.breakpoint()
+                    #jax.debug.breakpoint()
                     return r, success, collision, timeo, l
                 
                 done_idxs = jnp.argwhere(dones, size=10, fill_value=max_steps).squeeze()
-                mask_done = jnp.where(done_idxs == max_steps, True, False)
+                mask_done = jnp.where(done_idxs == max_steps, False, True)
                 #mask_done = jnp.nonzero(done_idxs != max_steps, size = max_steps)
                 #jax.debug.breakpoint()
                 ep_return, success, collision, timeo, length = __ep_outcomes(jnp.concatenate([jnp.array([-1]), done_idxs[:-1]]), done_idxs)        
