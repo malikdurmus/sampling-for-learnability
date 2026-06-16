@@ -6,7 +6,7 @@ defaults:
 "SEED": 2
 "GROUP_NAME": "jaxnav-sfl"
 "ENTITY": ""
-"PROJECT": "jaxnavlatestjax"
+"PROJECT": "jaxnav_valid_check"
 "WANDB_MODE" : "online"
 "SAVE_PATH": "checkpoints/multi_robot_ued"
 
@@ -23,5 +23,25 @@ learning:
 "BATCH_SIZE": 1000
 "NUM_BATCHES": 5
 "ROLLOUT_STEPS": 1000
-"NUM_TO_SAVE": 100
+"NUM_TO_SAVE": 1000
 "EVAL_SAMPLED_SET_PATH": "sfl/data/test_sets/sampled_tc_100e_1a_np.pkl"
+
+# =========================================================
+# LEARN_METHOD: Single key that controls the entire pipeline.
+# Valid values:
+#   "standard"              - Bare SFL (empirical rollouts only)
+#   "random"                - Random baseline
+#   "cnn"                   - CNN-only with CURRICULUM_STRATEGY
+#   "hybrid_linear"         - Hybrid: (4*sfl) + cnn_proximity
+#   "hybrid_soft_handoff"   - Hybrid: alpha-blended SFL/CNN
+#   "hybrid_learnability_weighted" - Hybrid: inverse-SFL-weighted CNN
+#   "hybrid_multiplicative" - Hybrid: Gaussian-filtered product
+# =========================================================
+LEARN_METHOD: "standard"
+RUN_NAME: "sfl_standard"
+
+# Curriculum Configuration (used by cnn and hybrid methods)
+CURRICULUM_STRATEGY: "performance_adaptive" # "time_based", "performance_adaptive", or "gaussian_frontier"
+CURRICULUM_START_MU: 0.05
+CURRICULUM_STEP_SIZE: 0.05
+CURRICULUM_GAUSSIAN_VAR: 0.1

@@ -23,6 +23,12 @@ import matplotlib
 matplotlib.use('Agg') 
 import matplotlib.pyplot as plt
 import wandb
+from flax import nnx
+import orbax.checkpoint as ocp
+from functools import partial
+from  rlhf_utils import load_learnability_model, get_jaxnav_rasterizer
+
+
 
 from jaxmarl.environments.jaxnav.jaxnav_env import JaxNav, EnvInstance, NUM_REWARD_COMPONENTS, REWARD_COMPONENT_DENSE, REWARD_COMPONENT_SPARSE, listify_reward
 
@@ -61,7 +67,8 @@ def batchify(x: dict, agent_list, num_actors):
 def unbatchify(x: jnp.ndarray, agent_list, num_envs, num_actors):
     x = x.reshape((num_actors, num_envs, -1))
     return {a: x[i] for i, a in enumerate(agent_list)}
-        
+
+
 
 @hydra.main(version_base=None, config_path="config", config_name="jaxnav-sfl")
 def main(config):
@@ -69,17 +76,41 @@ def main(config):
     # WAND B QAND CONFIG
     config = OmegaConf.to_container(config)
     run = wandb.init(
+        name= config["RUN_NAME"],
         group=config["GROUP_NAME"],
         entity=config["ENTITY"],
         project=config["PROJECT"],
         tags=["IPPO", "RNN", "DR", f"ts: {config['env']['test_set']}"],
         config=config,
         mode=config["WANDB_MODE"],
-    )
+    )  
+
+    # ---- Determine learn method from single config key ----
+    learn_method_raw = config.get("LEARN_METHOD", "standard")
+    if learn_method_raw.startswith("hybrid_"):
+        learn_method = "hybrid"
+        hybrid_mode = learn_method_raw.replace("hybrid_", "")  # e.g. "linear", "soft_handoff", etc.
+        config["HYBRID_MODE"] = hybrid_mode
+    else:
+        learn_method = learn_method_raw  # "standard", "cnn", or "random"
+        config["HYBRID_MODE"] = "linear"  # unused default
+    needs_cnn = learn_method in ["cnn", "hybrid"]
+    print(f"--- USING LEARNABILITY METHOD: {learn_method} (raw: {learn_method_raw}) ---")
+
+
+    if needs_cnn:
+        print("Loading CNN learnability model...")
+        cnn_checkpoint_path =  "/home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/finetune_linear_checkpoints/nc5766sd/epoch_7"      ###"/home/d/durmusy/Desktop/GIT/new/uedrlhf/orbaxexport/20260417-151340" #TODO config
+        cnn_graphdef, cnn_state = load_learnability_model(cnn_checkpoint_path)
+    else:
+        # Create dummy variables  
+        cnn_graphdef, cnn_state = None, None
+
 
     rng = jax.random.PRNGKey(config["SEED"])
     
     assert (config["learning"]["NUM_ENVS_FROM_SAMPLED"] +  config["learning"]["NUM_ENVS_TO_GENERATE"]) == config["learning"]["NUM_ENVS"]
+    
     
     env = JaxNav(num_agents=config["env"]["num_agents"],
                         **config["env"]["env_params"])  # use old config for env params to try reduce errors
@@ -100,7 +131,7 @@ def main(config):
     )
         
     network = ActorCriticRNN(env.agent_action_space().shape[0],
-                             config=t_config)
+                            config=t_config)
 
     eval_singleton_runner = EvalSingletonsRunner(
         config["env"]["test_set"],
@@ -111,7 +142,7 @@ def main(config):
     )
     # 100 instances # map size 11 x 11 (JaxNav Map size)
     with open(config["EVAL_SAMPLED_SET_PATH"], "rb") as f:
-      eval_env_instances = pickle.load(f)
+        eval_env_instances = pickle.load(f)
     _, eval_init_states = jax.vmap(env.set_env_instance, in_axes=(0))(eval_env_instances)
     
     eval_sampled_runner = EvalSampledRunner(
@@ -131,6 +162,18 @@ def main(config):
             1.0 - count / t_config["NUM_UPDATES"]
         )
         return t_config["LR"] * frac
+    
+    
+    #CNN_IMG_SIZE = 64  # CNN input resolution
+    RASTER_NATIVE_SIZE = 200  # render at high res to match matplotlib, then resize
+    jaxnav_render_fn = get_jaxnav_rasterizer(
+        img_height=RASTER_NATIVE_SIZE,
+        img_width=RASTER_NATIVE_SIZE,
+        map_height=config["env"]["env_params"]["map_params"]["map_size"][0],
+        map_width=config["env"]["env_params"]["map_params"]["map_size"][1],
+        cell_size=1.0,
+    )
+    
     
     # INIT NETWORK
     rng, _rng = jax.random.split(rng)
@@ -177,10 +220,131 @@ def main(config):
     start_state = env_state
     init_hstate = ScannedRNN.initialize_carry(t_config["NUM_ACTORS"], t_config["HIDDEN_SIZE"])
     
-    
-    
+
     @jax.jit
-    def get_learnability_set(rng, network_params): #
+    def select_environments(rng, cnn_scores_normalized, target_mu):
+        strategy = config.get("CURRICULUM_STRATEGY", "time_based")
+        
+        if strategy == "time_based" or strategy == "performance_adaptive":
+            distances = jnp.abs(cnn_scores_normalized - target_mu)
+            top_indices = jnp.argsort(distances)[:config["NUM_TO_SAVE"]]
+        elif strategy == "gaussian_frontier":
+            var = config.get("CURRICULUM_GAUSSIAN_VAR", 0.1)
+            weights = jnp.exp(-((cnn_scores_normalized - target_mu)**2) / (2 * var**2))
+            probs = weights / jnp.sum(weights)
+            top_indices = jax.random.choice(rng, cnn_scores_normalized.shape[0], shape=(config["NUM_TO_SAVE"],), p=probs, replace=False)
+        else:
+            top_indices = jnp.argsort(cnn_scores_normalized)[-config["NUM_TO_SAVE"]:]
+            
+        return top_indices
+
+    @partial(jax.jit, static_argnums=(1,)) # cnn_graphdef is static
+    def get_learnability_set_cnn(rng, cnn_graphdef, cnn_state, target_mu):
+        # Merge the state 
+        model = nnx.merge(cnn_graphdef, cnn_state)
+        
+        def _batch_step(unused, rng):
+            rng, _rng = jax.random.split(rng)
+            reset_rng = jax.random.split(_rng, config["BATCH_SIZE"])
+            obsv, env_state = jax.vmap(env.reset, in_axes=(0,))(reset_rng)
+            
+            env_instances = EnvInstance(
+                agent_pos=env_state.pos,
+                agent_theta=env_state.theta,
+                goal_pos=env_state.goal,
+                map_data=env_state.map_data,
+                rew_lambda=env_state.rew_lambda,
+            )
+            
+            # Chunk the rendering and evaluation to avoid OOM with large BATCH_SIZE mapped to 200x200 grids
+            CHUNK_SIZE = min(config["BATCH_SIZE"], 100)
+            NUM_CHUNKS = config["BATCH_SIZE"] // CHUNK_SIZE
+            
+            env_state_chunked = jax.tree.map(
+                lambda x: x.reshape((NUM_CHUNKS, CHUNK_SIZE) + x.shape[1:]),
+                env_state
+            )
+
+            def render_and_score_chunk_fn(carry, env_chunk):
+                #images_chunk = jax.vmap(jaxnav_render_fn)(env_chunk)
+                #scores_chunk = model(images_chunk, deterministic=True)
+                #return carry, scores_chunk
+                images_chunk = jax.vmap(jaxnav_render_fn)(env_chunk)
+                
+                # The model outputs raw logits (e.g., -18, +5, etc)
+                raw_logits = model(images_chunk, deterministic=True)
+                
+                # Squash them perfectly between 0.0 and 1.0!
+                scores_chunk = jax.nn.sigmoid(raw_logits)
+                
+                return carry, scores_chunk
+
+            _, learnability_chunked = jax.lax.scan(render_and_score_chunk_fn, None, env_state_chunked)
+            learnability_by_env = learnability_chunked.reshape((config["BATCH_SIZE"],))
+            
+            return None, (learnability_by_env, env_instances)
+            
+        rngs = jax.random.split(rng, config["NUM_BATCHES"])
+        _, (learnability, env_instances) = jax.lax.scan(_batch_step, None, rngs, config["NUM_BATCHES"]) 
+        
+        flat_env_instances = jax.tree.map(lambda x: x.reshape((-1,) + x.shape[2:]), env_instances)
+        learnability = learnability.flatten()
+        # ==========================================
+        # THE FIX: MIN-MAX NORMALIZATION
+        # ==========================================
+        l_min = jnp.min(learnability)
+        l_max = jnp.max(learnability)
+        # Add 1e-8 to prevent division by zero in case all maps get the exact same score
+        learnability_norm = (learnability - l_min) / (l_max - l_min + 1e-8)
+        
+        # Now sort and select using the curriculum strategy
+        rng, select_rng = jax.random.split(rng)
+        top_indices = select_environments(select_rng, learnability_norm, target_mu)
+        top_instances = jax.tree.map(lambda x: x.at[top_indices].get(), flat_env_instances)
+        
+        bottom_indices = jnp.argsort(learnability_norm)[:20]
+        bottom_instances = jax.tree.map(lambda x: x.at[bottom_indices].get(), flat_env_instances)
+        
+        # Return the normalized scores!
+        return learnability_norm.at[top_indices].get(), top_instances, learnability_norm.at[bottom_indices].get(), bottom_instances, jnp.zeros(20), bottom_instances
+
+        
+    @jax.jit
+    def get_learnability_set_random(rng):
+        def _batch_step(unused, rng):
+            rng, _rng = jax.random.split(rng)
+            reset_rng = jax.random.split(_rng, config["BATCH_SIZE"])
+            obsv, env_state = jax.vmap(env.reset, in_axes=(0,))(reset_rng)
+            
+            env_instances = EnvInstance(
+                agent_pos=env_state.pos,
+                agent_theta=env_state.theta,
+                goal_pos=env_state.goal,
+                map_data=env_state.map_data,
+                rew_lambda=env_state.rew_lambda,
+            )
+            
+            # Totally random scores
+            rng, rand_rng = jax.random.split(rng)
+            learnability_by_env = jax.random.uniform(rand_rng, (config["BATCH_SIZE"],))
+            
+            return None, (learnability_by_env, env_instances)
+            
+        rngs = jax.random.split(rng, config["NUM_BATCHES"])
+        _, (learnability, env_instances) = jax.lax.scan(_batch_step, None, rngs, config["NUM_BATCHES"]) 
+        
+        flat_env_instances = jax.tree.map(lambda x: x.reshape((-1,) + x.shape[2:]), env_instances)
+        learnability = learnability.flatten()
+        top_indices = jnp.argsort(learnability)[-config["NUM_TO_SAVE"]:]
+        top_instances = jax.tree.map(lambda x: x.at[top_indices].get(), flat_env_instances)
+        
+        bottom_indices = jnp.argsort(learnability)[:20]
+        bottom_instances = jax.tree.map(lambda x: x.at[bottom_indices].get(), flat_env_instances)
+        
+        return learnability.at[top_indices].get(), top_instances, learnability.at[bottom_indices].get(), bottom_instances, jnp.zeros(20), bottom_instances
+
+    @jax.jit
+    def get_learnability_set_standard(rng, network_params): #
         
         
         BATCH_ACTORS = config["BATCH_SIZE"] * env.num_agents
@@ -260,7 +424,7 @@ def main(config):
                         "collision_rate": collision.mean(where=mask_done),
                         "timeout_rate": timeo.mean(where=mask_done),
                         "ep_len": length.mean(where=mask_done),
-                      }
+                    }
             
             # sample envs
             rng, _rng = jax.random.split(rng)
@@ -292,25 +456,199 @@ def main(config):
             print('ooutcomes', o)
             #jax.debug.breakpoint()
             success_by_env = o["success_rate"].reshape((env.num_agents, config["BATCH_SIZE"]))
+            solvability_by_env = success_by_env.mean(axis=0)
             learnability_by_env = (success_by_env * (1 - success_by_env)).sum(axis=0)
 
             print('learnability_by_env', learnability_by_env)
-            return None, (learnability_by_env, env_instances)
+            return None, (learnability_by_env, solvability_by_env, env_instances)
             
         rngs = jax.random.split(rng, config["NUM_BATCHES"])
         #jax.debug.breakpoint()
-        _, (learnability, env_instances) = jax.lax.scan(_batch_step, None, rngs, config["NUM_BATCHES"]) # # TODO learnability set has nan values FIX
+        _, (learnability, solvability, env_instances) = jax.lax.scan(_batch_step, None, rngs, config["NUM_BATCHES"]) # # TODO learnability set has nan values FIX
         flat_env_instances = jax.tree.map(lambda x: x.reshape((-1,) + x.shape[2:]), env_instances)
         learnability = learnability.flatten()
         ###jax.debug.breakpoint()
         top_1000 = jnp.argsort(learnability)[-config["NUM_TO_SAVE"]:]
-        jax.debug.print("top 1000 {}", top_1000)
+        #jax.debug.print("top 1000 {}", top_1000)
         
         top_1000_instances = jax.tree.map(lambda x: x.at[top_1000].get(), flat_env_instances)
-        jax.debug.print('{}top 1000 instances', top_1000_instances)
-        return learnability.at[top_1000].get(), top_1000_instances
+        #jax.debug.print('{}top 1000 instances', top_1000_instances)
+        
+        bottom_20 = jnp.argsort(learnability)[:20]
+        bottom_20_instances = jax.tree.map(lambda x: x.at[bottom_20].get(), flat_env_instances)
+        
+        solvability = solvability.flatten()
+        unsolvable_indices = jnp.argsort(solvability)[:20]
+        unsolvable_instances = jax.tree.map(lambda x: x.at[unsolvable_indices].get(), flat_env_instances)
+        
+        return learnability.at[top_1000].get(), top_1000_instances, learnability.at[bottom_20].get(), bottom_20_instances, solvability.at[unsolvable_indices].get(), unsolvable_instances
         
     
+    @partial(jax.jit, static_argnums=(2,))  # cnn_graphdef is static
+    def get_learnability_set_hybrid(rng, network_params, cnn_graphdef, cnn_state, target_mu):
+        """Hybrid: runs agent rollouts (SFL scores + solvability) AND CNN scoring,
+        then combines them via config['HYBRID_MODE'] to select environments."""
+        
+        model = nnx.merge(cnn_graphdef, cnn_state)
+        BATCH_ACTORS = config["BATCH_SIZE"] * env.num_agents
+        
+        def _batch_step(unused, rng):
+            # ---- Environment rollout (identical to standard) ----
+            def _env_step(runner_state, unused):
+                env_state, start_state, last_obs, last_done, hstate, rng = runner_state
+                rng, _rng = jax.random.split(rng)
+                obs_batch = batchify(last_obs, env.agents, BATCH_ACTORS)
+                ac_in = (obs_batch[np.newaxis, :], last_done[np.newaxis, :])
+                hstate, pi, value, _ = network.apply(network_params, hstate, ac_in)
+                action = pi.sample(seed=_rng)
+                log_prob = pi.log_prob(action)
+                env_act = unbatchify(action, env.agents, config["BATCH_SIZE"], env.num_agents)
+                env_act = {k: v.squeeze() for k, v in env_act.items()}
+                
+                rng, _rng = jax.random.split(rng)
+                rng_step = jax.random.split(_rng, config["BATCH_SIZE"])
+                obsv, env_state, reward, done, info = jax.vmap(
+                    env.step, in_axes=(0, 0, 0, 0)
+                )(rng_step, env_state, env_act, start_state)
+                if env.do_sep_reward:
+                    reward = listify_reward(reward, do_batchify=True)
+                else:
+                    reward = batchify(reward, env.agents, BATCH_ACTORS).squeeze()
+                done_batch = batchify(done, env.agents, BATCH_ACTORS).squeeze()
+                train_mask = info["terminated"].swapaxes(0, 1).reshape(-1)
+                transition = Transition(
+                    jnp.tile(done["__all__"], env.num_agents),
+                    last_done,
+                    action.squeeze(),
+                    value.squeeze(),
+                    reward,
+                    log_prob.squeeze(),
+                    obs_batch,
+                    train_mask,
+                    info,
+                )
+                runner_state = (env_state, start_state, obsv, done_batch, hstate, rng)
+                return runner_state, transition
+            
+            @partial(jax.vmap, in_axes=(None, 1, 1, 1))
+            @partial(jax.jit, static_argnums=(0,))
+            def _calc_outcomes_by_agent(max_steps, dones, returns, info):
+                idxs = jnp.arange(max_steps)
+                @partial(jax.vmap, in_axes=(0, 0))
+                def __ep_outcomes(start_idx, end_idx):
+                    mask = (idxs > start_idx) & (idxs <= end_idx) & (end_idx != max_steps)
+                    r = jnp.sum(returns * mask)
+                    success = jnp.sum(info["GoalR"] * mask)
+                    collision = jnp.sum((info["MapC"] + info["AgentC"]) * mask)
+                    timeo = jnp.sum(info["TimeO"] * mask)
+                    l = end_idx - start_idx
+                    return r, success, collision, timeo, l
+                done_idxs = jnp.argwhere(dones, size=10, fill_value=max_steps).squeeze()
+                mask_done = jnp.where(done_idxs == max_steps, False, True)
+                ep_return, success, collision, timeo, length = __ep_outcomes(
+                    jnp.concatenate([jnp.array([-1]), done_idxs[:-1]]), done_idxs
+                )
+                return {
+                    "success_rate": success.mean(where=mask_done),
+                }
+            
+            # Generate environments
+            rng, _rng = jax.random.split(rng)
+            reset_rng = jax.random.split(_rng, config["BATCH_SIZE"])
+            obsv, env_state = jax.vmap(env.reset, in_axes=(0,))(reset_rng)
+            env_instances = EnvInstance(
+                agent_pos=env_state.pos,
+                agent_theta=env_state.theta,
+                goal_pos=env_state.goal,
+                map_data=env_state.map_data,
+                rew_lambda=env_state.rew_lambda,
+            )
+            
+            # ---- Agent rollout for SFL scores ----
+            init_hstate_batch = ScannedRNN.initialize_carry(BATCH_ACTORS, t_config["HIDDEN_SIZE"])
+            runner_state = (env_state, env_state, obsv, jnp.zeros((BATCH_ACTORS), dtype=bool), init_hstate_batch, rng)
+            runner_state, traj_batch = jax.lax.scan(_env_step, runner_state, None, config["ROLLOUT_STEPS"])
+            
+            info_by_actor = jax.tree.map(lambda x: x.swapaxes(2, 1).reshape((-1, BATCH_ACTORS)), traj_batch.info)
+            o = _calc_outcomes_by_agent(config["ROLLOUT_STEPS"], traj_batch.done, traj_batch.reward, info_by_actor)
+            success_by_env = o["success_rate"].reshape((env.num_agents, config["BATCH_SIZE"]))
+            solvability_by_env = success_by_env.mean(axis=0)                          # (BATCH_SIZE,)
+            sfl_scores = (success_by_env * (1 - success_by_env)).sum(axis=0)          # (BATCH_SIZE,) range [0, 0.25]
+            
+            # ---- CNN scoring ----
+            CHUNK_SIZE = min(config["BATCH_SIZE"], 100)
+            NUM_CHUNKS = config["BATCH_SIZE"] // CHUNK_SIZE
+            env_state_chunked = jax.tree.map(
+                lambda x: x.reshape((NUM_CHUNKS, CHUNK_SIZE) + x.shape[1:]), env_state
+            )
+            def render_and_score_chunk_fn(carry, env_chunk):
+                images_chunk = jax.vmap(jaxnav_render_fn)(env_chunk)
+                scores_chunk = model(images_chunk, deterministic=True)
+                return carry, scores_chunk
+            _, cnn_scores_chunked = jax.lax.scan(render_and_score_chunk_fn, None, env_state_chunked)
+            cnn_scores = cnn_scores_chunked.reshape((config["BATCH_SIZE"],))           # (BATCH_SIZE,) raw logits
+            
+            return None, (sfl_scores, cnn_scores, solvability_by_env, env_instances)
+        
+        # Run all batches
+        rngs = jax.random.split(rng, config["NUM_BATCHES"])
+        _, (sfl_scores, cnn_scores, solvability_p, env_instances) = jax.lax.scan(
+            _batch_step, None, rngs, config["NUM_BATCHES"]
+        )
+        
+        # Flatten across batches
+        flat_env_instances = jax.tree.map(lambda x: x.reshape((-1,) + x.shape[2:]), env_instances)
+        sfl_scores = sfl_scores.flatten()           # (TOTAL,) range [0, 0.25]
+        cnn_scores = cnn_scores.flatten()           # (TOTAL,) raw logits
+        solvability_p = solvability_p.flatten()     # (TOTAL,) range [0, 1]
+        
+        # ---- Min-max normalize CNN scores ----
+        c_min = jnp.min(cnn_scores)
+        c_max = jnp.max(cnn_scores)
+        cnn_norm = (cnn_scores - c_min) / (c_max - c_min + 1e-8)  # (TOTAL,) range [0, 1]
+        
+        # ---- CNN proximity to target_mu ----
+        cnn_proximity = 1.0 - jnp.abs(cnn_norm - target_mu)       # (TOTAL,) range [0, 1]
+        
+        # ---- Compound scoring based on HYBRID_MODE ----
+        hybrid_mode = config.get("HYBRID_MODE", "linear")
+        
+        if hybrid_mode == "linear":
+            compound_scores = (4.0 * sfl_scores) + cnn_proximity
+            
+        elif hybrid_mode == "soft_handoff":
+            batch_p = jnp.mean(solvability_p)
+            alpha = jnp.clip(batch_p / 0.1, 0.0, 1.0)
+            compound_scores = (alpha * (4.0 * sfl_scores)) + ((1.0 - alpha) * cnn_proximity)
+            
+        elif hybrid_mode == "learnability_weighted":
+            cnn_weight = (0.25 - sfl_scores) * 4.0
+            cnn_weight = jnp.where(solvability_p > 0.9, 0.0, cnn_weight)  # mastery safeguard
+            compound_scores = (4.0 * sfl_scores) + (cnn_weight * cnn_proximity)
+
+            
+        elif hybrid_mode == "multiplicative":
+            cnn_filter = jnp.exp(-((cnn_norm - target_mu)**2) / (2 * 0.1**2))
+            compound_scores = (sfl_scores + 0.01) * cnn_filter
+        
+        else:
+            # Fallback: pure SFL
+            compound_scores = sfl_scores
+        
+        # ---- Select top environments ----
+        top_indices = jnp.argsort(compound_scores)[-config["NUM_TO_SAVE"]:]
+        top_instances = jax.tree.map(lambda x: x.at[top_indices].get(), flat_env_instances)
+        
+        # ---- Bottom 20 (global worst by compound score) ----
+        bottom_indices = jnp.argsort(compound_scores)[:20]
+        bottom_instances = jax.tree.map(lambda x: x.at[bottom_indices].get(), flat_env_instances)
+        
+        # ---- Unsolvable (lowest solvability) ----
+        unsolvable_indices = jnp.argsort(solvability_p)[:20]
+        unsolvable_instances = jax.tree.map(lambda x: x.at[unsolvable_indices].get(), flat_env_instances)
+        
+        return compound_scores.at[top_indices].get(), top_instances, compound_scores.at[bottom_indices].get(), bottom_instances, solvability_p.at[unsolvable_indices].get(), unsolvable_instances
+
     # TRAIN LOOP
     def train_step(runner_state_instances, unused):
         # COLLECT TRAJECTORIES
@@ -643,7 +981,7 @@ def main(config):
         runner_state = (train_state, env_state, start_state, obsv, jnp.zeros((t_config["NUM_ACTORS"]), dtype=bool), hstate, update_steps, rng)
         return (runner_state, instances), metric
     
-    def log_buffer(learnability, states, epoch):
+    def log_buffer(learnability, states, epoch, log_key="best_maps"):
         num_samples = states.pos.shape[0]
         rows = 2 
         fig, axes = plt.subplots(rows, int(num_samples/rows), figsize=(20, 10))
@@ -663,17 +1001,48 @@ def main(config):
         im = Image.fromarray(rgba_buffer).convert("RGB")        
     
     
-        run.log({"maps": wandb.Image(im)}, step=epoch)
+        run.log({log_key: wandb.Image(im)}, step=epoch)
     
-    @jax.jit
-    def train_and_eval_step(runner_state, eval_rng):
+    @partial(jax.jit, static_argnums=(2,)) # learn_method must be static!
+    def train_and_eval_step(runner_state, eval_rng, learn_method, cnn_state, target_mu):
         
         learnability_rng, eval_singleton_rng, eval_sampled_rng = jax.random.split(eval_rng, 3)
         # -----------------------------------TRAIN---------------------------------------------
-        learnabilty_scores, instances = get_learnability_set(learnability_rng, runner_state[0].params)
+        if learn_method == "cnn":
+            learnabilty_scores, instances, worst_scores, worst_instances, unsolvable_scores, unsolvable_instances = get_learnability_set_cnn(
+                learnability_rng, 
+                cnn_graphdef, 
+                cnn_state,
+                target_mu
+            )
+        elif learn_method == "standard":
+            learnabilty_scores, instances, worst_scores, worst_instances, unsolvable_scores, unsolvable_instances = get_learnability_set_standard(
+                learnability_rng, 
+                runner_state[0].params
+            )
+        elif learn_method == "hybrid":
+            learnabilty_scores, instances, worst_scores, worst_instances, unsolvable_scores, unsolvable_instances = get_learnability_set_hybrid(
+                learnability_rng,
+                runner_state[0].params,
+                cnn_graphdef,
+                cnn_state,
+                target_mu
+            )
+        else: # random
+            learnabilty_scores, instances, worst_scores, worst_instances, unsolvable_scores, unsolvable_instances = get_learnability_set_random(
+                learnability_rng
+            )
+        #learnabilty_scores, instances = get_learnability_set(learnability_rng, runner_state[0].params)
         runner_state_instances = (runner_state, instances)
         ##jax.debug.print("learnabilityscores{}" , learnabilty_scores)
         runner_state_instances, metrics = jax.lax.scan(train_step, runner_state_instances, None, t_config["EVAL_FREQ"])
+        
+        goal_r = metrics["terminations"]["GoalR"].sum()
+        agent_c = metrics["terminations"]["AgentC"].sum()
+        map_c = metrics["terminations"]["MapC"].sum()
+        time_o = metrics["terminations"]["TimeO"].sum()
+        total_terms = goal_r + agent_c + map_c + time_o
+        recent_success_rate = goal_r / (total_terms + 1e-8)
 
 
 
@@ -682,6 +1051,10 @@ def main(config):
         test_metrics = {
             "learnability_set_scores": learnabilty_scores,
             "learnability_set_mean_score": learnabilty_scores.mean(),
+            "worst_learnability_scores": worst_scores,
+            "worst_learnability_mean_score": worst_scores.mean(),
+            "recent_success_rate": recent_success_rate,
+            "target_mu": target_mu,
         }
         #jax.debug.breakpoint() #np learnability scores healthy no nan
         test_metrics["singleton-test-metrics"] = eval_singleton_runner.run(eval_singleton_rng, runner_state[0].params)
@@ -694,8 +1067,23 @@ def main(config):
 
         top_instances = jax.tree.map(lambda x: x.at[-20:].get(), instances)
         _, top_states = jax.vmap(env.set_env_instance)(top_instances)
+        _, worst_states = jax.vmap(env.set_env_instance)(worst_instances)
+        _, unsolvable_states = jax.vmap(env.set_env_instance)(unsolvable_instances)
+        
+        # Highest scores in the selected instances
+        highest_in_top_idx = jnp.argsort(learnabilty_scores)[-20:]
+        highest_in_top_scores = learnabilty_scores.at[highest_in_top_idx].get()
+        highest_in_top_instances = jax.tree.map(lambda x: x.at[highest_in_top_idx].get(), instances)
+        _, highest_in_top_states = jax.vmap(env.set_env_instance)(highest_in_top_instances)
+        
+        # Lowest scores in the selected instances
+        lowest_in_top_idx = jnp.argsort(learnabilty_scores)[:20]
+        lowest_in_top_scores = learnabilty_scores.at[lowest_in_top_idx].get()
+        lowest_in_top_instances = jax.tree.map(lambda x: x.at[lowest_in_top_idx].get(), instances)
+        _, lowest_in_top_states = jax.vmap(env.set_env_instance)(lowest_in_top_instances)
+        
         print("train eval steps returns line reached")
-        return runner_state, (learnabilty_scores.at[-20:].get(), top_states), test_metrics
+        return runner_state, (learnabilty_scores.at[-20:].get(), top_states), (worst_scores, worst_states), (unsolvable_scores, unsolvable_states), (highest_in_top_scores, highest_in_top_states), (lowest_in_top_scores, lowest_in_top_states), test_metrics
     
     rng, _rng = jax.random.split(rng)
     runner_state = (
@@ -711,15 +1099,35 @@ def main(config):
     checkpoint_steps = t_config["NUM_UPDATES"] // t_config["EVAL_FREQ"] // t_config["NUM_CHECKPOINTS"]
     print('eval freq', t_config["EVAL_FREQ"])
 
+    target_mu = jnp.array(config.get("CURRICULUM_START_MU", 0.05))
 
     for eval_step in range(int(t_config["NUM_UPDATES"] // t_config["EVAL_FREQ"])):
         start_time = time.time()
         rng, eval_rng = jax.random.split(rng)
-        runner_state, instances, metrics = train_and_eval_step(runner_state, eval_rng) # TRAINING AND EVAL HAPPENS IN ONE STEP
+        
+        curriculum_strategy = config.get("CURRICULUM_STRATEGY", "time_based")
+        if curriculum_strategy == "time_based":
+            current_update = runner_state[-2]
+            target_mu = jnp.clip(current_update / t_config["NUM_UPDATES"], 0.0, 1.0)
+            
+        runner_state, top_instances_data, worst_instances_data, unsolvable_instances_data, highest_in_top_data, lowest_in_top_data, metrics = train_and_eval_step(runner_state, eval_rng, learn_method, cnn_state, target_mu)
+        #runner_state, instances, metrics = train_and_eval_step(runner_state, eval_rng) # TRAINING AND EVAL HAPPENS IN ONE STEP
+        
+        if curriculum_strategy in ["performance_adaptive", "gaussian_frontier"]:
+            recent_success_rate = metrics["recent_success_rate"]
+            step_size = config.get("CURRICULUM_STEP_SIZE", 0.05)
+            target_mu = jnp.where(recent_success_rate > 0.8, jnp.clip(target_mu + step_size, 0.0, 1.0), target_mu)
+            target_mu = jnp.where(recent_success_rate < 0.2, jnp.clip(target_mu - step_size, 0.0, 1.0), target_mu)
+            
         curr_time = time.time()
         print('reached 716')
         #jax.debug.breakpoint()
-        log_buffer(*instances, metrics["update_count"]) # HERE THE LOGGING here no problem 
+        log_buffer(*top_instances_data, metrics["update_count"], log_key="best_maps") # HERE THE LOGGING here no problem 
+        #log_buffer(*worst_instances_data, metrics["update_count"], log_key="worst_maps")
+        #log_buffer(*highest_in_top_data, metrics["update_count"], log_key="highest_in_curriculum")
+        #log_buffer(*lowest_in_top_data, metrics["update_count"], log_key="lowest_in_curriculum")
+        if learn_method in ["standard", "hybrid"]:
+            log_buffer(*unsolvable_instances_data, metrics["update_count"], log_key="unsolvable_maps")
         metrics['time_delta'] = curr_time - start_time #ok
         metrics["steps_per_section"] = (t_config["EVAL_FREQ"] * t_config["NUM_STEPS"] * t_config["NUM_ENVS"]) / metrics['time_delta'] #ok 
         #jax.debug.breakpoint()

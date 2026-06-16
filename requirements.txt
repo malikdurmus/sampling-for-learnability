@@ -1,6 +1,6 @@
 pandas
 hydra-core
-jaxmarl @ git+https://github.com/malikdurmus/JaxMARL
+jaxmarl @ git+https://github.com/malikdurmus/JaxMARL@experimental
 jaxued @ git+https://github.com/DramaCow/jaxued 
 jax[cuda12]
 scipy

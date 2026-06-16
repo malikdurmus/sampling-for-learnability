@@ -35,4 +35,4 @@ env_params:
     fill: 0.6
     start_pad: 1.5
     valid_path_check: False
-    sample_test_case_type: "grid"
+    sample_test_case_type: "random"
