@@ -165,3 +165,6 @@ artifacts/
 outputs/
 checkpoints
 .xland_minigrid/
+
+interactive_test_outputs/*
+slurm_scripts/*

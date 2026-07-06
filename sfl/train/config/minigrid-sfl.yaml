@@ -7,7 +7,7 @@ defaults:
 "GROUP_NAME": "minigrid-sfl"
 "ENTITY": ""
 "PROJECT": "minigrid"
-"WANDB_MODE" : "online "
+"WANDB_MODE" : "disabled"
 "SAVE_PATH": "checkpoints/new_minigrid"
 
 learning:
