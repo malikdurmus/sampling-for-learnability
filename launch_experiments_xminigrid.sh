@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================
-# Batch Experiment Launcher
+# Batch Experiment Launcher for XLand-MiniGrid
 # Generates individual SLURM scripts and submits them.
 # =============================================================
 
@@ -18,16 +18,16 @@ METHODS=(
 )
 SEEDS=(1 2 3 4)
 
-PROJECT="jaxnav_sfl_experiments_pa_new"
+PROJECT="xminigrid_sfl_experiments_new_trial4"
 GROUP="full_comparison"
 WORKDIR="$HOME/Desktop/GIT/updatedjnavwsfl/sampling-for-learnability"
 
 for METHOD in "${METHODS[@]}"; do
     for SEED in "${SEEDS[@]}"; do
         # RUN_NAME must be unique per seed (one W&B run name per seed)
-        RUN_NAME="${METHOD}_sigmoid_seed${SEED}"
-        JOB_NAME="${METHOD}_s${SEED}"
-        SCRIPT_PATH="slurm_scripts/${RUN_NAME}.sh"
+        RUN_NAME="${METHOD}_seed${SEED}"
+        JOB_NAME="xl_${METHOD}_s${SEED}"
+        SCRIPT_PATH="slurm_scripts/xl_${RUN_NAME}.sh"
 
         cat > "${SCRIPT_PATH}" << 'HEADER'
 #!/bin/bash
@@ -36,16 +36,17 @@ HEADER
 
         cat >> "${SCRIPT_PATH}" << BODY
 #SBATCH --job-name=${JOB_NAME}
-#SBATCH --output=slurm_logs/%j_out.log
-#SBATCH --error=slurm_logs/%j_err.log
+#SBATCH --output=slurm_logs/xl_%j_out.log
+#SBATCH --error=slurm_logs/xl_%j_err.log
 
 cd ${WORKDIR}
 source .venv/bin/activate
-TF_GPU_ALLOCATOR=cuda_malloc_async python -u sfl/train/jaxnav_sfl.py LEARN_METHOD=${METHOD} SEED=${SEED} RUN_NAME=${RUN_NAME} PROJECT=${PROJECT} GROUP_NAME=${GROUP}
+# XLA_PYTHON_CLIENT_PREALLOCATE=false can be added if OOM occurs
+TF_GPU_ALLOCATOR=cuda_malloc_async python -u sfl/train/xland_sfl.py LEARN_METHOD=${METHOD} SEED=${SEED} RUN_NAME=${RUN_NAME} PROJECT=${PROJECT} GROUP_NAME=${GROUP}
 unset TF_GPU_ALLOCATOR
 BODY
 
-        echo "Submitting: ${RUN_NAME}"
+        echo "Submitting: ${JOB_NAME}"
         sbatch "${SCRIPT_PATH}"
     done
 done
