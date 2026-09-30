@@ -49,6 +49,24 @@ All of these sit behind one config key, `LEARN_METHOD`:
 | `progress_mean` | `mp*(1-mp)`, which targets levels the agent half finishes | no |
 | `dijkstra` | shortest path length over the occupancy grid | no |
 
+### Dense learnability
+
+The `progress` variants exist because `p(1-p)` throws away almost everything an episode
+tells you. A level the agent never finishes scores 0 whether it walked into the first
+wall or stopped one step short of the goal, so early in training most candidate levels
+look identical. These methods score how far the agent got instead, as
+`clip(1 - d/d_start, 0, 1)`, where `d_start` is the distance to the goal at the start of
+the episode and `d` is the distance when it ended. `progress` takes the variance of that
+over the episodes on a level, which keeps the original idea of preferring levels with
+inconsistent outcomes while giving a level the agent always fails a score that still
+moves. `progress_mindist` uses the closest the agent ever came rather than where it
+stopped, which ignores the agent wandering off after nearly finishing. `progress_mean`
+drops the variance and scores `mp*(1-mp)` on the mean progress, so it aims at levels the
+agent reliably gets about halfway through.
+
+None of these need a difficulty model, a target difficulty or a rendered image. They are
+measured from the agent's own rollouts, like plain SFL.
+
 ### Serving the difficulty models
 
 `sfl/train/rlhf_utils.py` loads five independently trained networks per domain and
@@ -69,14 +87,30 @@ produce the figures behind this.
 
 ### Target difficulty controllers
 
-`sfl/train/jaxnav_sfl_frontier.py` replaces the preset `mu` ramp with three
-alternatives. Two are step rules, one driven by the success rate over all training
-environments and one by the success rate on the selected levels only. The third bins the
-candidate levels by predicted difficulty, fits an isotonic success curve over those
-bins, and puts `mu` where the curve crosses a target success rate. While too few bins
-carry any signal, which is the situation at the start of training, it falls back to the
-step rule. The curve is computed and logged on every run, so the diagnostic is available
-whichever controller is active.
+Any method that selects by predicted difficulty needs a target, `mu`, saying which part
+of the difficulty range to train on. Moving it on a preset schedule is the obvious
+approach and the one that was there first, but a fixed step has no idea where the agent
+actually is: it sits below what the agent can already do early on, and once it reaches
+the top of the scale it stays there, which only helps if the hardest levels are solvable
+at all. `sfl/train/jaxnav_sfl_frontier.py` adds three controllers that set `mu` from
+measurements instead.
+
+The first steps `mu` up or down on the agent's success rate across all training
+environments, counted per episode. This is what the old schedule did in practice. The
+second measures the same thing but only over the levels that were selected, averaged per
+level rather than per episode, which tracks what the agent is being trained on rather
+than what it happens to be running.
+
+The third does not step at all. It sorts the candidate levels into bins by predicted
+difficulty, measures the success rate in each bin, fits a monotone curve through those
+rates, and reads off the difficulty at which the curve crosses a chosen success rate.
+That point is where the agent is currently succeeding about as often as it fails, which
+is the target the whole idea of learnability is reaching for. It only works once several
+bins have distinguishable success rates, so while the curve is still flat, which is the
+case for the first few cycles, it falls back to the second controller's step rule.
+
+The curve is fitted and logged on every run whichever controller is selected, so runs
+using a step rule still record where the measured frontier was.
 
 ### Second domain
 
@@ -158,7 +192,7 @@ from [JaxMARL](https://github.com/FLAIROx/JaxMARL), MiniGrid from
 [JaxUED](https://github.com/DramaCow/jaxued), and
 [XLand-MiniGrid](https://github.com/corl-team/xland-minigrid) from its own repository.
 XLand needs a different JAX version, so its code stays separate under `xland/` with its
-own Dockerfile. `sfl_guide.md` is the original walkthrough of the JaxNav trainer.
+own Dockerfile.
 
 If you use SFL or JaxNav, cite the original authors:
 
