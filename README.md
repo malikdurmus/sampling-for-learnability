@@ -1,104 +1,167 @@
-# No Regrets: Investigating and Improving Regret Approximations for Curriculum Discovery
+# Learned Difficulty Scorers for Curriculum Discovery
 
-<div class="collage">
-    <div class="column" align="centre">
-        <div class="row" align="centre">
-            <img src="./docs/images/jaxnav-sa.gif" alt="JaxNav Single-Agent" width="24%">
-            <img src="./docs/images/jaxnav-ma.gif" alt="JaxNav Multi-Agent" width="24%">
-            <img src="./docs/images/minigrid.gif" alt="MiniGrid Maze" width="24%">
-            <img src="./docs/images/xland.gif" alt="XLand-Minigrid" width="24%">
-        </div>
-    </div>
-</div>
+Bachelor's thesis, Malik Durmus, Ludwig-Maximilians-Universität München.
 
----
+This repository holds the code for my thesis on curriculum learning for reinforcement
+learning agents. It extends the Sampling For Learnability (SFL) codebase of Rutherford
+et al. (NeurIPS 2024) with level selection driven by a learned difficulty model, a
+second training domain, and the tooling used to run the experiments. What came from the
+original work is listed under [Built on](#built-on).
+
 <p align="center">
-       <a href= "https://github.com/amacrutherford/sampling-for-learnability/blob/main/LICENSE">
-        <img src="https://img.shields.io/badge/license-Apache2.0-blue.svg" /></a>
-       <a href= "https://arxiv.org/abs/2408.15099">
-        <img src="https://img.shields.io/badge/arXiv-2408.15099-b31b1b.svg" /></a>
+  <img src="./docs/images/jaxnav-sa.gif" alt="JaxNav" width="30%">
+  <img src="./docs/images/xland.gif" alt="XLand-MiniGrid" width="30%">
 </p>
+<p align="center"><sub>The two domains used here: JaxNav 2D navigation (left) and
+XLand-MiniGrid (right).</sub></p>
 
-🎉 **Update: We were accepted at NeurIPS 2024, see you all in Vancouver in December!**
+## Background
 
-A repoistory for training **unsupervised environment design** (UED) methods on **2D navigation** tasks. We support three environments:
-- **JaxNav**, our Jax-based simulator for single- and multi-robot 2D geometric navigation, this environment is imported from [JaxMARL](https://github.com/FLAIROx/JaxMARL).
-- **MiniGrid**: a sigle-agent maze navigation domain, this environment is imported from [JaxUED](https://github.com/DramaCow/jaxued).
-- **XLand-Minigrid**: a goal-oriented, grid-based, meta-RL task inspired by XLand and MiniGrid, imported from [XLand-MiniGrid](https://github.com/corl-team/xland-minigrid) and often refered to as just XLand in this repo.
+SFL picks training levels by learnability, `p(1-p)`, where `p` is the agent's success
+rate on a level. Getting `p` means rolling out the current policy over thousands of
+candidate levels at every refresh cycle, which is expensive. Early in training it is
+also uninformative, because the agent fails almost everything and the estimates are
+mostly binomial noise.
 
-We include several UED methods:
-- **Sampling For Learnability (SFL)**, our proposed UED method for binary-outcome deterministic settings.
-- **[PLR](https://arxiv.org/abs/2010.03934)**
-- **[Robust PLR](https://arxiv.org/abs/2110.02439)**
-- **[ACCEL](https://arxiv.org/abs/2203.01302)**
-- **[Domain Randomisation](https://arxiv.org/abs/1703.06907)**
+My thesis asks whether a difficulty model trained offline can supply that signal
+instead. The models are ResNets trained on pairwise difficulty comparisons in a
+separate repository, and are used here as frozen ensembles that score rendered levels
+before any rollout happens. Alongside them I added selection methods that keep SFL's
+agent-relative idea but measure something denser than a binary win or loss.
 
-Our PLR and ACCEL implementations are built off [JaxUED](https://github.com/DramaCow/jaxued).
+## What this adds
 
-## Paper TL;DR
+### Level selection methods
 
-We introduce **Sampling For Learnability (SFL), a new UED method** for binary-outcome deterministic settings which outperforms current state-of-the-art approaches on Minigrid and our robotics simulator JaxNav. SFL uniformly randomly samples maps based on *learnability* which given an agent's success rate on a level $p$, is calculated as $p\cdot (1-p)$. By training on levels with learnability, SFL is able to find the frontier of the agent's ability and hence improve robustness.
+All of these sit behind one config key, `LEARN_METHOD`:
 
-Rather than just comparing performance on a set of hand designed test maps, we introduce **a new evaluation protocol for curriculum methods, designed to explicitly test robustness**. Our protocol computes a *risk* metric on the performance of the method, by evaluating its performance in the worst $\alpha\%$ of a newly sampled set of environments. Results for this protocol are illusrated below, with our SFL method proving more robust.
+| Method | What drives selection | Uses a difficulty model |
+|---|---|---|
+| `standard` | measured `p(1-p)`, the SFL baseline | no |
+| `dr` / `random` | uniform sampling | no |
+| `cnn` | predicted difficulty against a target difficulty `mu` | yes |
+| `hybrid_linear` | `4*sfl + cnn_proximity` | yes |
+| `hybrid_soft_handoff` | blend from SFL to the model as training proceeds | yes |
+| `hybrid_learnability_weighted` | model score weighted by inverse SFL | yes |
+| `hybrid_multiplicative` | Gaussian-filtered product of both | yes |
+| `progress` | variance over episodes of `clip(1 - d/d_start, 0, 1)`, using the distance to the goal at the end of the episode | no |
+| `progress_mindist` | same, but using the closest the agent ever got | no |
+| `progress_mean` | `mp*(1-mp)`, which targets levels the agent half finishes | no |
+| `dijkstra` | shortest path length over the occupancy grid | no |
 
-<table>
-  <tr>
-    <td align="center" width="25%">
-      <img src="./docs/images/cvar_line_jaxnav_sa.png" alt="JaxNav Single-Agent" style="width: 100%;"/>
-      <p><b>JaxNav Single-Agent</b></p>
-    </td>
-    <td align="center" width="25%">
-      <img src="./docs/images/cvar_line_jaxnav_ma.png" alt="JaxNav Multi-Agent" style="width: 100%;"/>
-      <p><b>JaxNav Multi-Agent</b></p>
-    </td>
-    <td align="center" width="25%">
-      <img src="./docs/images/cvar_line_minigrid.png" alt="MiniGrid Maze" style="width: 100%;"/>
-      <p><b>MiniGrid Maze</b></p>
-    </td>
-    <td align="center" width="25%">
-      <img src="./docs/images/cvar_line_xland.png" alt="XLand-MiniGrid" style="width: 100%;"/>
-      <p><b>XLand-MiniGrid</b></p>
-    </td>
-  </tr>
-</table>
+### Serving the difficulty models
 
-## ⬇️ Install
+`sfl/train/rlhf_utils.py` loads five independently trained networks per domain and
+combines them by averaging their scalar logits, never their weights. The spread between
+members is kept as an uncertainty signal and logged, together with the rank agreement
+between them. Loading a single network is the same code path with K=1.
 
-We reccomend using our Dockerfile. With Docker and the [Nvidia Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/index.html) installed, it can be built with `$ make build` and run with `$ make run`.
+### Score normalisation
 
-For installing from source, first ensure you have the correct [JAX version](https://github.com/google/jax#installation) for your system installed and then install our dependencies with `$ pip install -e .`
+The models are trained on pairwise comparisons, so they learn a ranking and their logit
+offset is arbitrary. Squashing those logits with a sigmoid pushes every level into one
+corner of the range, which makes the target difficulty meaningless. Selection therefore
+converts each score into its rank inside a fixed 10,000 level sample drawn from the same
+generator. That reference is built once and shared across runs and seeds so scores stay
+comparable. Sigmoid and min-max normalisation are still available as config options for
+comparison. `score_normalization_comparison.py` and `percentile_score_distribution.py`
+produce the figures behind this.
 
-### ⚠️ XLand
+### Target difficulty controllers
 
-XLand-Minigrid has a different JAX requirement to JaxMARL and JaxUED. As such, code for xland is held seperately within `xland/`, with seperate a Dockerfile and Makefile located within.
+`sfl/train/jaxnav_sfl_frontier.py` replaces the preset `mu` ramp with three
+alternatives. Two are step rules, one driven by the success rate over all training
+environments and one by the success rate on the selected levels only. The third bins the
+candidate levels by predicted difficulty, fits an isotonic success curve over those
+bins, and puts `mu` where the curve crosses a target success rate. While too few bins
+carry any signal, which is the situation at the start of training, it falls back to the
+step rule. The curve is computed and logged on every run, so the diagnostic is available
+whichever controller is active.
 
-## 🎯 Reproducing results
+### Second domain
 
-### 🧗🏼‍♂️ Train policies
-All training scripts can be found within `sfl/train` and we include a set of configuration files, contained within `sweep_configs`, to launch experiements across a number of seeds using `wandb` sweeps. We also include a helpful script for easily starting sweeps, `start_wandb_sweep.py`. Using this script, SFL on single-agent JaxNav can be run across 4 GPUs with 1 agent per gpu as:
+`sfl/train/xland_sfl.py` ports the methods to XLand-MiniGrid. The ruleset is a config
+key, with `difficult` as the main setting and `medium` as a comparison, each using the
+difficulty model trained on that ruleset.
+
+### Robustness evaluation
+
+`cvar_eval/` implements the CVaR protocol from the paper over a frozen set of 10 by 1000
+solvable levels. Levels are ranked using one rollout seed and scored using a second,
+which is the bias correction the original authors use. It runs in three stages: generate
+the level set once, roll out twice, then analyse. Rollouts skip levels that already have
+a CSV, so a killed job can be resubmitted.
+
+### Experiment infrastructure
+
+SLURM launchers for each wave of runs, with drip feeding so a shared partition is not
+monopolised, requeue guards for node reboots, and VRAM pinning for the methods that need
+a large GPU. `pod_*.sh` and `provision_*_pod.sh` set up rented cloud instances for the
+runs the cluster could not host. Roughly 200 training runs went through these.
+
+## Running it
+
+Build the environment with `rebuild_venv.sh`. The lockfiles on their own produce a
+broken environment, because two files inside `site-packages/jaxmarl` need patching after
+install; the script does that.
+
 ```bash
-$ python start_wandb_sweep.py sweep_configs/jaxnav-sa_sfl_10seeds.yaml 0:4 1
+# one JaxNav run
+python -m sfl.train.jaxnav_sfl --config-name jaxnav-sfl LEARN_METHOD=hybrid_linear SEED=1
+
+# one XLand run on the difficult ruleset
+python -m sfl.train.xland_sfl --config-name xland-sfl LEARN_METHOD=cnn SEED=1
+
+# a full wave on SLURM
+./launch_wave1fix.sh
+
+# CVaR evaluation
+python cvar_eval/cvar_0_generate_levels.py
+sbatch cvar_eval/launch_cvar.sbatch
+python cvar_eval/cvar_2_analyse.py
 ```
-We use `wandb` for logging, your API key and entity can be set within the Dockerfile.
 
-### 📊 Evaluate performance
-You can either use your own trained policies (downloaded from `wandb`) or our saved checkpoints (located within `checkpoints/`). For all settings (JaxNav single agent, JaxNav multi agent, MiniGrid and XLand), evaluation is a three step process using scripts located within `sfl/deploy` for the first three and within `xland/eval` for XLand.
+The difficulty model checkpoints are not in this repository. They are several GB of
+Orbax checkpoints from a separate training repo, and `CNN_CHECKPOINT_PATHS` in the
+configs points at them with absolute local paths. Any method that needs a difficulty
+model therefore will not run elsewhere without editing those paths. `standard`, `dr`,
+the `progress` variants and `dijkstra` need no model and run as they are.
 
-1. A set number of levels are generated using `*_0_generate_levels.py`. These levels are saved to `sfl/eval/ENV_NAME`, with `ENV_NAME` being either `jaxnav` or `minigrid`.
-2. Rollouts for the methods under consideration on these levels are collected with `*_1_rollout.py`, **run this twice for two seeds** (we use 0 and 1). Results from these rollouts are saved as csv's to `sfl/data/eval/results`.
-3. The performance of all methods is analysed by `*_2_analyse.py`, with results plotted and saved to `results/`.
+## Repository layout
 
-If you instead wish to analyse and vizualise performance on the hand-designed test sets, you can use `sfl/deploy/deploy_on_singletons.py` for JaxNav and `sfl/deploy/deploy_minigrid_on_singeltons.py` for MiniGrid. For the sampled test sets used with JaxNav, use `sfl/deploy/deploy_on_sampled_set.py`.
+Scripts sit at the top level, grouped here by what they do.
 
-To reproduce our graph illustrating how current UED scoring metrics do not correleate with learnability, but instead with success rate, use the `sfl/deploy/deploy_on_sampled_and_calc_regret.ipynb` notebook.
+| | |
+|---|---|
+| Training | `sfl/train/jaxnav_sfl.py` (main trainer), `jaxnav_sfl_frontier.py` (target difficulty controllers), `xland_sfl.py` (XLand), `rlhf_utils.py` (difficulty models), configs under `sfl/train/config/` |
+| Evaluation | `cvar_eval/`, plus the 10k level result CSVs in `sfl/data/eval/results/` |
+| Analysis | `wave1fix_analysis.py`, `newarms_analysis.py`, `frontier_analysis.py`, `xland_analysis.py`, `solv_ablation_analysis.py`, `coldstart_*`, `*_score_distribution.py` |
+| Checks | `verify_progress_arms.py`, `verify_dijkstra_gates.py`, `verify_inversion_integrated.py`, `test_inversion_*.py`, `xrender_*` (renderer comparison), `member_structure_diagnostics.py` |
+| Infrastructure | `launch_*.sh`, `*_dripfeed.sh`, `pod_*.sh`, `provision_*_pod.sh`, `rebuild_venv.sh` |
 
-## 🧭 JaxNav
+Each analysis script commits the `*_output.txt` it printed, and where it pulled numbers
+from Weights and Biases it commits the `*_raw.json` it pulled. Anything reported can
+be recomputed from the repository without a network connection or a live W&B project.
 
-This Jax-based environment for 2D geometric navigation is introduced with this work but the code and documentation is held within [JaxMARL](https://github.com/FLAIROx/JaxMARL/tree/main/jaxmarl/environments/jaxnav).
+## Built on
 
-## Citation
+This codebase started from the reference implementation of *No Regrets: Investigating
+and Improving Regret Approximations for Curriculum Discovery* by Rutherford, Beukman,
+Willi, Lacerda, Hawes and Foerster (NeurIPS 2024):
+[paper](https://arxiv.org/abs/2408.15099),
+[original repository](https://github.com/amacrutherford/sampling-for-learnability),
+Apache-2.0, kept in [LICENSE](LICENSE).
 
-If you use our SFL method or JaxNav in your work, please cite us as:
+Still used here from that work: SFL itself, which is the baseline everything is measured
+against, the PLR, Robust PLR, ACCEL and DR baselines, and the environments. JaxNav comes
+from [JaxMARL](https://github.com/FLAIROx/JaxMARL), MiniGrid from
+[JaxUED](https://github.com/DramaCow/jaxued), and
+[XLand-MiniGrid](https://github.com/corl-team/xland-minigrid) from its own repository.
+XLand needs a different JAX version, so its code stays separate under `xland/` with its
+own Dockerfile. `sfl_guide.md` is the original walkthrough of the JaxNav trainer.
+
+If you use SFL or JaxNav, cite the original authors:
+
 ```bibtex
 @inproceedings{rutherford2024noregrets,
     title={No Regrets: Investigating and Improving Regret Approximations for Curriculum Discovery},
@@ -108,4 +171,3 @@ If you use our SFL method or JaxNav in your work, please cite us as:
     url={https://arxiv.org/abs/2408.15099}
 }
 ```
-
