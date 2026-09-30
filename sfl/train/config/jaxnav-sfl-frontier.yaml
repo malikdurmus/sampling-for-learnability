@@ -1,0 +1,74 @@
+defaults:
+  - env: jaxnav
+  - learning: ippo-jaxnav
+  - _self_
+
+"SEED": 2
+"GROUP_NAME": "frontier"
+"ENTITY": ""
+"PROJECT": "sfl-jaxnav-frontier"
+"WANDB_MODE" : "online"
+"SAVE_PATH": "checkpoints/multi_robot_ued"
+
+env:
+  num_agents: 1
+  test_set: "single"
+
+learning:
+  # "NUM_ENVS": 256
+  "NUM_ENVS_FROM_SAMPLED": 128  #4 #128
+  "NUM_ENVS_TO_GENERATE": 128 #4  #128
+
+# SAMPLE LEARNABILITY 
+"BATCH_SIZE": 1000
+"NUM_BATCHES": 5
+"ROLLOUT_STEPS": 1000
+"NUM_TO_SAVE": 1000
+"EVAL_SAMPLED_SET_PATH": "sfl/data/test_sets/sampled_tc_100e_1a_np.pkl"
+
+# =========================================================
+# LEARN_METHOD: Single key that controls the entire pipeline.
+# Valid values:
+#   "standard"              - Bare SFL (empirical rollouts only)
+#   "random"                - Random baseline
+#   "cnn"                   - CNN-only with CURRICULUM_STRATEGY
+#   "dijkstra"              - Heuristic shortest-path difficulty (no CNN)
+#   "progress"              - Dense learnability: var over episodes of
+#                             end-based goal-proximity progress (no CNN, no mu)
+#   "progress_mindist"      - Same but progress from closest approach (d_min)
+#   "progress_mean"         - mp*(1-mp), mp = mean end-based progress
+#                             (half-completion targeting; no CNN, no mu)
+#   "hybrid_linear"         - Hybrid: (4*sfl) + cnn_proximity
+#   "hybrid_soft_handoff"   - Hybrid: alpha-blended SFL/CNN
+#   "hybrid_learnability_weighted" - Hybrid: inverse-SFL-weighted CNN
+#   "hybrid_multiplicative" - Hybrid: Gaussian-filtered product
+# =========================================================
+LEARN_METHOD: "standard"
+RUN_NAME: "sfl_standard"
+
+# Curriculum Configuration (used by cnn and hybrid methods)
+CURRICULUM_STRATEGY: "performance_adaptive" # "time_based", "performance_adaptive", or "gaussian_frontier"
+CURRICULUM_START_MU: 0.05
+CURRICULUM_STEP_SIZE: 0.05
+CURRICULUM_GAUSSIAN_VAR: 0.1
+
+
+CNN_CHECKPOINT_PATHS:
+  - /home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/ensemble/jaxnav/ens-jaxnav-aug-init100/epoch_26
+  - /home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/ensemble/jaxnav/ens-jaxnav-aug-init101/epoch_22
+  - /home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/ensemble/jaxnav/ens-jaxnav-aug-init102/epoch_41
+  - /home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/ensemble/jaxnav/ens-jaxnav-aug-init103/epoch_32
+  - /home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/ensemble/jaxnav/ens-jaxnav-aug-init104/epoch_28
+
+CNN_SCORE_METHOD: "percentile"
+
+# Frozen-reference percentile calibration (used when CNN_SCORE_METHOD=percentile)
+PERCENTILE_REF_SIZE: 10000
+PERCENTILE_REF_SEED: 4242  # shared across runs/seeds so scores stay comparable
+
+MU_MEASUREMENT: "buffer_env"
+
+FRONTIER_MODE: "crossing"
+FRONTIER_NBINS: 20
+FRONTIER_MIN_INFORMATIVE_BINS: 3
+FRONTIER_INFORMATIVE_P: 0.05
