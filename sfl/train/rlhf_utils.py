@@ -1,12 +1,12 @@
+import os
+
 import jax
 import jax.numpy as jnp
 from flax import nnx
 import orbax.checkpoint as ocp
 from functools import partial
 
-# ==========================================
 # 1. THE CNN MODEL
-# ==========================================
 class CNN(nnx.Module):
     def __init__(self, * , rngs: nnx.Rngs):
         self.conv1 = nnx.Conv(in_features=3, out_features=32, kernel_size=(5,5), padding="VALID", rngs=rngs)
@@ -103,7 +103,7 @@ class LearnabilityResNet(nnx.Module):
         self.head_dropout = nnx.Dropout(rate=0.3, rngs=rngs)
         self.head_linear2 = nnx.Linear(in_features=128, out_features=1, rngs=rngs)
 
-    def __call__(self, x, deterministic: bool = False, rngs: nnx.Rngs | None = None):
+    def __call__(self, x, deterministic: bool = False, rngs: nnx.Rngs | None = None, return_logits: bool = False):
         
         # stem
         x = self.stem_conv(x)
@@ -120,8 +120,9 @@ class LearnabilityResNet(nnx.Module):
         x = self.stage3_block1(x, deterministic=deterministic)
         x = self.stage3_block2(x, deterministic=deterministic)
         
-        # this collapses (batch , channel) into (bath, channel)
-        x = jnp.max(x, axis=(1, 2))
+        
+        # breaks checkpoints trained with mean pooling)
+        x = jnp.mean(x, axis=(1, 2))
         
         #  Scoring Head
         x = self.head_linear1(x)
@@ -129,36 +130,150 @@ class LearnabilityResNet(nnx.Module):
         x = self.head_dropout(x, deterministic=deterministic, rngs=rngs)
         x = self.head_linear2(x)
         
-        return jnp.squeeze(x, axis=-1)
+        logits = jnp.squeeze(x, axis=-1)
+        if return_logits:
+            return logits
+        return jax.nn.sigmoid(logits)
     
 
 
-# ==========================================
-# 2. MODEL LOADER
-# ==========================================
-def load_learnability_model(checkpoint_path: str):
-    """
-    Loads the trained CNN and splits it into a static graphdef 
-    and dynamic state so it can safely pass through jax.jit.
-    """
-    print(f"Loading CNN learnability model from {checkpoint_path}...")
+LearnabilityResNetXLand = LearnabilityResNet # same architecture
+
+
+def load_xland_learnability_model(checkpoint_path: str):
+
+    print(f"Loading XLand CNN learnability model from {checkpoint_path}...")
     rngs = nnx.Rngs(0)
-    model = LearnabilityResNet(rngs=rngs)
+    model = LearnabilityResNetXLand(rngs=rngs)
     
-    # We load the exact abstract state shape to tell Orbax what to expect
     graphdef, abstract_state = nnx.split(model)
     
     checkpointer = ocp.StandardCheckpointer()
     restored_state = checkpointer.restore(checkpoint_path, abstract_state)
     
-    # Re-merge to set the model to eval mode (disables dropout)
     model = nnx.merge(graphdef, restored_state)
     model.eval()
     
-    # Split one final time to return the pure JAX components
     cnn_graphdef, cnn_state = nnx.split(model)
     
     return cnn_graphdef, cnn_state
+
+
+
+# MODEL LOADER
+def load_learnability_model(checkpoint_path: str):
+
+    print(f"Loading CNN learnability model from {checkpoint_path}...")
+    rngs = nnx.Rngs(0)
+    model = LearnabilityResNet(rngs=rngs)
+    
+    graphdef, abstract_state = nnx.split(model)
+    
+    checkpointer = ocp.StandardCheckpointer()
+    restored_state = checkpointer.restore(checkpoint_path, abstract_state)
+    
+    model = nnx.merge(graphdef, restored_state)
+    model.eval()
+    
+    cnn_graphdef, cnn_state = nnx.split(model)
+
+    return cnn_graphdef, cnn_state
+
+
+#ensemble loader 
+def load_learnability_ensemble(checkpoint_paths):
+
+    if isinstance(checkpoint_paths, str):
+        checkpoint_paths = [checkpoint_paths]
+    assert len(checkpoint_paths) >= 1, "CNN ensemble needs at least one checkpoint path"
+    for p in checkpoint_paths:
+        assert os.path.isdir(p), f"CNN checkpoint directory does not exist: {p}"
+
+    graphdef, states = None, []
+    for p in checkpoint_paths:
+        graphdef, state = load_learnability_model(p)
+        states.append(state)
+
+    stacked_state = jax.tree.map(lambda *xs: jnp.stack(xs), *states)
+    return graphdef, stacked_state, len(checkpoint_paths)
+
+
+CHECKPOINT_INDEX_PATH = ("/home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/"
+                         "checkpoints/CHECKPOINT_INDEX.json")
+
+
+def resolve_input_domain(checkpoint_paths):
+
+    import json
+    if isinstance(checkpoint_paths, str):
+        checkpoint_paths = [checkpoint_paths]
+    with open(CHECKPOINT_INDEX_PATH) as f:
+        idx = json.load(f)
+    by_relpath = {}
+    for runs in idx["projects"].values():
+        for entry in runs.values():
+            by_relpath[entry["path"].rstrip("/")] = entry.get("input_domain")
+
+    domains = {}
+    for p in checkpoint_paths:
+        marker = "/outputs/checkpoints/"
+        assert marker in p, f"cannot derive index-relative path from: {p}"
+        rel = p.split(marker, 1)[1].rstrip("/")
+        assert rel in by_relpath, (
+            f"checkpoint not in CHECKPOINT_INDEX.json: {rel} — refuse to guess "
+            f"its input_domain (re-pin the index, or pass invert_input explicitly "
+            f"for out-of-index checkpoints such as legacy/)")
+        dom = by_relpath[rel]
+        assert dom in ("inverted", "true"), f"missing/invalid input_domain for {rel}: {dom!r}"
+        domains[rel] = dom
+    uniq = set(domains.values())
+    assert len(uniq) == 1, f"mixed input domains in one ensemble: {domains}"
+    return uniq.pop()
+
+
+def invert_input_domain(images):
+
+    u8 = jnp.clip(jnp.round(images * 255.0), 0.0, 255.0)
+    return jnp.mod(256.0 - u8, 256.0) / 255.0
+
+
+def make_member_logit_fn(graphdef, invert_input: bool = True):
+
+    def member_logit_fn(stacked_state, images):
+        if invert_input:
+            images = invert_input_domain(images)
+        def _member_logits(state):
+            model = nnx.merge(graphdef, state)
+            return model(images, deterministic=True, return_logits=True)
+        return jax.vmap(_member_logits)(stacked_state)  # (K, B)
+    return member_logit_fn
+
+
+def make_ensemble_logit_fn(graphdef, invert_input: bool = True):
+
+    member_logit_fn = make_member_logit_fn(graphdef, invert_input=invert_input)
+    def ensemble_logits(stacked_state, images):
+        member_logits = member_logit_fn(stacked_state, images)  # (K, B)
+        return member_logits.mean(axis=0), member_logits.std(axis=0)
+    return ensemble_logits
+
+
+def standardized_member_spread(member_logits):
+
+    mu = member_logits.mean(axis=1, keepdims=True)
+    sd = member_logits.std(axis=1, keepdims=True)
+    return ((member_logits - mu) / (sd + 1e-8)).std(axis=0)
+
+
+def pairwise_rank_agreement(member_logits):
+    # means rank correlaton in ensembles
+    K = member_logits.shape[0]
+    ranks = jnp.argsort(jnp.argsort(member_logits, axis=1), axis=1).astype(jnp.float32)
+    ranks = ranks - ranks.mean(axis=1, keepdims=True)
+    norm = jnp.sqrt(jnp.sum(ranks ** 2, axis=1, keepdims=True))
+    r = ranks / (norm + 1e-12)
+    corr = r @ r.T  # (K, K) Spearman matrix
+    return (corr.sum() - jnp.trace(corr)) / (K * (K - 1))
 
 
 
@@ -185,8 +300,7 @@ def get_jaxnav_rasterizer(
     py_idx = jnp.arange(img_height)
     px_grid, py_grid = jnp.meshgrid(px_idx, py_idx)
     
-    # Correct coordinate mapping: 
-    # px=0 should be left edge (0.0), px=img_width should be right (map_width)
+
     world_x = (px_grid + 0.5) * px_w
     world_y = (img_height - 0.5 - py_grid) * px_h
     world_xy = jnp.stack([world_x, world_y], axis=-1)
@@ -216,8 +330,6 @@ def get_jaxnav_rasterizer(
         
         h = jnp.clip(num / jnp.maximum(den, 1e-7), 0.0, 1.0)
         
-        # h is (H, W). We add a trailing dimension [..., None] to make it (H, W, 1)
-        # This allows it to broadcast correctly with ba which is (2,)
         return jnp.linalg.norm(pa - ba * h[..., None], axis=-1)
 
     def render_aa(dist, thickness, blur=1.0):
@@ -225,18 +337,15 @@ def get_jaxnav_rasterizer(
         Anti-aliased rendering helper.
         blur: width in pixels to smooth the edge.
         """
-        # thickness is in world units. We convert blur to world units.
         edge_width = blur * px_w 
         return jnp.clip(0.5 - (dist - thickness) / edge_width, 0.0, 1.0)
 
     def render_state(env_state):
-        # 1. Background / Walls
-        # Standardize grid indices
         grid_col = jnp.clip(jnp.floor(world_x / cell_size).astype(jnp.int32), 0, env_state.map_data.shape[1] - 1)
         grid_row = jnp.clip(jnp.floor(world_y / cell_size).astype(jnp.int32), 0, env_state.map_data.shape[0] - 1)
         
         is_wall = env_state.map_data[grid_row, grid_col]
-        # Map: 1 (wall) -> Black (0,0,0), 0 (free) -> White (1,1,1)
+
         wall_color = jnp.array([0.0, 0.0, 0.0])  # Black
         free_color = jnp.array([1.0, 1.0, 1.0])  # White    
 
@@ -248,14 +357,11 @@ def get_jaxnav_rasterizer(
             goal = env_state.goal[agent_idx]
             done = env_state.done[agent_idx]
             
-            # --- Layer: Goal Line (Transparent Black) ---
-            # Increase thickness slightly for low-res (at least 1 pixel)
             line_thickness = jnp.maximum(0.02, px_w * 0.5) 
             d_line = dist_to_segment(world_xy, pos, goal)
             alpha_line = render_aa(d_line, line_thickness, blur=1.5) * 0.3 # 0.3 alpha
             img_curr = img_carry * (1.0 - alpha_line[..., None])
 
-            # --- Layer: Goal Marker (Green +) ---
             p_goal = world_xy - goal
             m_size, m_thick = 0.25, jnp.maximum(0.06, px_w * 0.8)
             sdf_g = jnp.minimum(sdf_box(p_goal, jnp.array([m_size, m_thick])), 
@@ -264,9 +370,9 @@ def get_jaxnav_rasterizer(
             goal_color = jnp.array([0.0, 0.6, 0.0])
             img_curr = img_curr * (1.0 - alpha_goal[..., None]) + goal_color * alpha_goal[..., None]
 
-            # --- Layer: Agent Body (Red/Black Box) ---
             p_agent = world_xy - pos
-            # Rotate points opposite to theta to align with AABB SDF
+
+
             cos_t, sin_t = jnp.cos(-theta), jnp.sin(-theta)
             rot_inv = jnp.array([[cos_t, -sin_t], [sin_t, cos_t]])
             p_agent_rot = jnp.matmul(p_agent, rot_inv.T)
@@ -276,8 +382,8 @@ def get_jaxnav_rasterizer(
             agent_color = jnp.where(done, jnp.array([0.0, 0.0, 0.0]), jnp.array([1.0, 0.0, 0.0]))
             img_curr = img_curr * (1.0 - alpha_agent[..., None]) + agent_color * alpha_agent[..., None]
 
-            # --- Layer: Direction Line (Black) ---
-            # Middle line logic (usually from center to front edge)
+            # - Direction Line-
+
             dir_end = pos + jnp.array([jnp.cos(theta), jnp.sin(theta)]) * 0.25
             d_dir = dist_to_segment(world_xy, pos, dir_end)
             alpha_dir = render_aa(d_dir, jnp.maximum(0.03, px_w * 0.6), blur=1.0)
