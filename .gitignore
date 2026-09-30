@@ -168,3 +168,19 @@ checkpoints
 
 interactive_test_outputs/*
 slurm_scripts/*
+# --- thesis campaign (SFL/UED experiments) ---
+# SLURM job stdout/stderr and dripfeed bookkeeping: no evidential value,
+# reported numbers trace to the *_raw.json / *_output.txt artifacts instead.
+slurm_logs/
+
+# editor-local settings
+.vscode/
+
+# Internal working notes and handovers: kept locally, not published.
+CLAUDE.md
+THESIS_FINDINGS.md
+METRICS_GUIDE.md
+VENV_REPRODUCTION.md
+FRONTIER_WAVE_*.md
+HANDOVER_*.md
+cvar_eval/README_CVAR.md
