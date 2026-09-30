@@ -1,0 +1,36 @@
+NEW-ARMS ANALYSIS (generated 2026-09-02 08:36Z)
+project sfl-jaxnav-campaign-fixed; endpoint sampled-test-metrics.eval-sampled/overall_win_rate; n=10 paired seeds; duplicate names
+resolved to newest finished full-length attempt (multi-attempt names: 5)
+
+== summary (mean ± std over 10 seeds) ==
+method                      tail5         early5      AUC
+standard           0.9800±0.0063 0.5378±0.0228 0.8942
+progress           0.9610±0.0125 0.5384±0.0335 0.8819
+progress_mindist   0.9682±0.0096 0.5464±0.0151 0.8841
+progress_mean      0.9523±0.0119 0.5631±0.0254 0.8772
+dijkstra           0.8996±0.0094 0.5112±0.0114 0.8390
+dr                 0.9300±0.0117 0.4717±0.0293 0.8457
+
+== paired vs standard (two-sided Wilcoxon, Holm over the 4 new arms) ==
+method              med delta   wins        p  p(Holm)
+progress              -0.0188    1/10   0.0098   0.0195
+progress_mindist      -0.0152    3/10   0.0273   0.0273
+progress_mean         -0.0261    0/10   0.0020   0.0078
+dijkstra              -0.0795    0/10   0.0020   0.0078
+
+== paired vs dr (context: do the new arms beat random?) ==
+progress           med delta +0.0303  wins 9/10  p=0.0039
+progress_mindist   med delta +0.0396  wins 10/10  p=0.0020
+progress_mean      med delta +0.0306  wins 9/10  p=0.0098
+dijkstra           med delta -0.0349  wins 0/10  p=0.0020
+
+== cold start, paired vs standard (early-5 mean) ==
+progress           med delta -0.0002  wins 5/10  p=1.0000
+progress_mindist   med delta -0.0039  wins 4/10  p=1.0000
+progress_mean      med delta +0.0369  wins 6/10  p=0.1055
+dijkstra           med delta -0.0261  wins 1/10  p=0.0488
+
+== density endpoint (dense arms only; within-run measurement) ==
+n=30 runs
+binary p(1-p) frac_nonzero: cycle1 0.079 [0.071,0.087]  final 0.026 [0.018,0.038]
+dense score  frac_nonzero: cycle1 0.666  final 0.971

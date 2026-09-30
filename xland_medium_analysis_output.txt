@@ -1,0 +1,122 @@
+XLand MEDIUM ruleset campaign analysis
+project=xland-sfl-campaign  arms=['dr', 'standard', 'cnn', 'hybrid_linear', 'hybrid_soft_handoff']  seeds=[1, 2, 3, 4]  eval rows/run=366
+run ids: cnn/1:9a3d50f5, cnn/2:3u5js4un, cnn/3:jbwra8s7, cnn/4:ndc3b2yv, dr/1:m45bir74, dr/2:34xpxxug, dr/3:j1tcbowc, dr/4:bc6m856a, hybrid_linear/1:x4ct2ony, hybrid_linear/2:jq6ueo0l, hybrid_linear/3:lwq1hj4b, hybrid_linear/4:ti4scxd7, hybrid_soft_handoff/1:yjtkl0xh, hybrid_soft_handoff/2:yxk3im34, hybrid_soft_handoff/3:v47r9q1j, hybrid_soft_handoff/4:cyfiapc2, standard/1:gxc6234y, standard/2:4d4gd5v9, standard/3:8liiejhd, standard/4:hym2l37s
+n=4 -> exact two-sided Wilcoxon minimum p=0.125: ALL comparisons are
+descriptive; no significance claims are possible at this seed count.
+
+== SUCCESS RATE, fixed training ruleset (512 envs x 10 eps, resampled per cycle) ==
+  [tail-5]
+    dr                     0.9999 +- 0.0001   per-seed: 1.0000 0.9999 1.0000 0.9999
+    standard               0.9999 +- 0.0001   per-seed: 0.9999 0.9998 1.0000 1.0000
+    cnn                    1.0000 +- 0.0000   per-seed: 1.0000 1.0000 0.9999 1.0000
+    hybrid_linear          1.0000 +- 0.0000   per-seed: 1.0000 1.0000 1.0000 1.0000
+    hybrid_soft_handoff    1.0000 +- 0.0000   per-seed: 0.9999 1.0000 1.0000 0.9999
+    cnn                    vs standard: delta_median=+0.0000 wins=3/4 p=0.625   vs dr: delta_median=+0.0000 wins=2/4 p=1.000
+    hybrid_linear          vs standard: delta_median=+0.0000 wins=3/4 p=0.250   vs dr: delta_median=+0.0000 wins=2/4 p=0.500
+    hybrid_soft_handoff    vs standard: delta_median=+0.0000 wins=2/4 p=0.750   vs dr: delta_median=+0.0000 wins=1/4 p=1.000
+    standard               vs dr: delta_median=-0.0000 wins=1/4 p=0.625
+  [final]
+    dr                     1.0000 +- 0.0001   per-seed: 1.0000 0.9998 1.0000 1.0000
+    standard               1.0000 +- 0.0001   per-seed: 1.0000 0.9998 1.0000 1.0000
+    cnn                    1.0000 +- 0.0001   per-seed: 1.0000 0.9998 1.0000 1.0000
+    hybrid_linear          1.0000 +- 0.0000   per-seed: 1.0000 1.0000 1.0000 1.0000
+    hybrid_soft_handoff    1.0000 +- 0.0000   per-seed: 1.0000 1.0000 1.0000 1.0000
+    cnn                    vs standard: delta_median=+0.0000 wins=0/4 p=1.000   vs dr: delta_median=+0.0000 wins=0/4 p=1.000
+    hybrid_linear          vs standard: delta_median=+0.0000 wins=1/4 p=1.000   vs dr: delta_median=+0.0000 wins=1/4 p=1.000
+    hybrid_soft_handoff    vs standard: delta_median=+0.0000 wins=1/4 p=1.000   vs dr: delta_median=+0.0000 wins=1/4 p=1.000
+    standard               vs dr: delta_median=+0.0000 wins=0/4 p=1.000
+  [early-10]
+    dr                     0.0363 +- 0.0076   per-seed: 0.0290 0.0335 0.0356 0.0469
+    standard               0.0366 +- 0.0108   per-seed: 0.0312 0.0354 0.0277 0.0520
+    cnn                    0.0313 +- 0.0057   per-seed: 0.0277 0.0280 0.0398 0.0296
+    hybrid_linear          0.0316 +- 0.0032   per-seed: 0.0304 0.0294 0.0302 0.0363
+    hybrid_soft_handoff    0.0326 +- 0.0074   per-seed: 0.0255 0.0269 0.0393 0.0387
+    cnn                    vs standard: delta_median=-0.0054 wins=1/4 p=0.625   vs dr: delta_median=-0.0034 wins=1/4 p=0.375
+    hybrid_linear          vs standard: delta_median=-0.0034 wins=1/4 p=0.375   vs dr: delta_median=-0.0048 wins=1/4 p=0.250
+    hybrid_soft_handoff    vs standard: delta_median=-0.0071 wins=1/4 p=0.625   vs dr: delta_median=-0.0051 wins=1/4 p=0.375
+    standard               vs dr: delta_median=+0.0020 wins=3/4 p=0.875
+  [early-50]
+    dr                     0.2102 +- 0.1806   per-seed: 0.0621 0.1260 0.1815 0.4711
+    standard               0.1502 +- 0.1015   per-seed: 0.0738 0.1619 0.0755 0.2894
+    cnn                    0.1212 +- 0.0410   per-seed: 0.0959 0.0773 0.1622 0.1493
+    hybrid_linear          0.0976 +- 0.0422   per-seed: 0.0489 0.0895 0.1006 0.1514
+    hybrid_soft_handoff    0.1687 +- 0.1482   per-seed: 0.0737 0.0835 0.1298 0.3879
+    cnn                    vs standard: delta_median=-0.0312 wins=2/4 p=0.875   vs dr: delta_median=-0.0340 wins=1/4 p=0.375
+    hybrid_linear          vs standard: delta_median=-0.0487 wins=1/4 p=0.375   vs dr: delta_median=-0.0587 wins=0/4 p=0.125
+    hybrid_soft_handoff    vs standard: delta_median=+0.0271 wins=2/4 p=0.875   vs dr: delta_median=-0.0471 wins=1/4 p=0.250
+    standard               vs dr: delta_median=-0.0472 wins=2/4 p=0.625
+
+== SUCCESS RATE, high-3m benchmark rulesets (generalization) ==
+  [tail-5]
+    dr                     0.0426 +- 0.0028   per-seed: 0.0460 0.0439 0.0397 0.0409
+    standard               0.0426 +- 0.0082   per-seed: 0.0430 0.0541 0.0365 0.0370
+    cnn                    0.0430 +- 0.0041   per-seed: 0.0482 0.0391 0.0444 0.0405
+    hybrid_linear          0.0433 +- 0.0010   per-seed: 0.0425 0.0439 0.0444 0.0424
+    hybrid_soft_handoff    0.0426 +- 0.0044   per-seed: 0.0404 0.0429 0.0486 0.0384
+    cnn                    vs standard: delta_median=+0.0044 wins=3/4 p=0.875   vs dr: delta_median=+0.0009 wins=2/4 p=1.000
+    hybrid_linear          vs standard: delta_median=+0.0025 wins=2/4 p=1.000   vs dr: delta_median=+0.0007 wins=3/4 p=0.625
+    hybrid_soft_handoff    vs standard: delta_median=-0.0006 wins=2/4 p=1.000   vs dr: delta_median=-0.0018 wins=1/4 p=0.875
+    standard               vs dr: delta_median=-0.0031 wins=1/4 p=0.875
+  [final]
+    dr                     0.0376 +- 0.0051   per-seed: 0.0439 0.0393 0.0350 0.0322
+    standard               0.0383 +- 0.0078   per-seed: 0.0408 0.0480 0.0342 0.0303
+    cnn                    0.0400 +- 0.0044   per-seed: 0.0422 0.0361 0.0451 0.0365
+    hybrid_linear          0.0397 +- 0.0035   per-seed: 0.0352 0.0410 0.0436 0.0391
+    hybrid_soft_handoff    0.0381 +- 0.0073   per-seed: 0.0334 0.0377 0.0486 0.0328
+    cnn                    vs standard: delta_median=+0.0038 wins=3/4 p=0.875   vs dr: delta_median=+0.0013 wins=2/4 p=0.625
+    hybrid_linear          vs standard: delta_median=+0.0016 wins=2/4 p=0.625   vs dr: delta_median=+0.0043 wins=3/4 p=0.875
+    hybrid_soft_handoff    vs standard: delta_median=-0.0024 wins=2/4 p=1.000   vs dr: delta_median=-0.0005 wins=2/4 p=1.000
+    standard               vs dr: delta_median=-0.0014 wins=1/4 p=0.875
+  [early-10]
+    dr                     0.0321 +- 0.0037   per-seed: 0.0287 0.0311 0.0312 0.0373
+    standard               0.0319 +- 0.0046   per-seed: 0.0294 0.0339 0.0271 0.0373
+    cnn                    0.0309 +- 0.0034   per-seed: 0.0296 0.0297 0.0359 0.0283
+    hybrid_linear          0.0295 +- 0.0003   per-seed: 0.0295 0.0294 0.0291 0.0299
+    hybrid_soft_handoff    0.0307 +- 0.0034   per-seed: 0.0270 0.0287 0.0340 0.0329
+    cnn                    vs standard: delta_median=-0.0020 wins=2/4 p=0.875   vs dr: delta_median=-0.0002 wins=2/4 p=0.875
+    hybrid_linear          vs standard: delta_median=-0.0022 wins=2/4 p=0.625   vs dr: delta_median=-0.0019 wins=1/4 p=0.250
+    hybrid_soft_handoff    vs standard: delta_median=-0.0033 wins=1/4 p=0.875   vs dr: delta_median=-0.0020 wins=1/4 p=0.625
+    standard               vs dr: delta_median=+0.0003 wins=3/4 p=0.875
+  [early-50]
+    dr                     0.0414 +- 0.0063   per-seed: 0.0338 0.0420 0.0406 0.0492
+    standard               0.0396 +- 0.0052   per-seed: 0.0361 0.0434 0.0343 0.0448
+    cnn                    0.0394 +- 0.0027   per-seed: 0.0373 0.0370 0.0423 0.0411
+    hybrid_linear          0.0369 +- 0.0045   per-seed: 0.0314 0.0363 0.0374 0.0423
+    hybrid_soft_handoff    0.0407 +- 0.0061   per-seed: 0.0342 0.0396 0.0402 0.0489
+    cnn                    vs standard: delta_median=-0.0012 wins=2/4 p=1.000   vs dr: delta_median=-0.0017 wins=2/4 p=0.625
+    hybrid_linear          vs standard: delta_median=-0.0036 wins=1/4 p=0.375   vs dr: delta_median=-0.0044 wins=0/4 p=0.125
+    hybrid_soft_handoff    vs standard: delta_median=+0.0011 wins=2/4 p=0.625   vs dr: delta_median=-0.0003 wins=1/4 p=0.625
+    standard               vs dr: delta_median=-0.0015 wins=2/4 p=0.625
+
+== EXPLORATORY, not pre-registered: first eval cycle reaching a success threshold (fixed ruleset) ==
+  [threshold 0.1]
+    dr                     cycles per seed: 41 23 28 19              (4/4 reached; median=26 mean=27.8 +- 9.6)
+    standard               cycles per seed: 39 15 40 14              (4/4 reached; median=27 mean=27.0 +- 14.4)
+    cnn                    cycles per seed: 29 36 23 26              (4/4 reached; median=28 mean=28.5 +- 5.6)
+    hybrid_linear          cycles per seed: 46 33 28 23              (4/4 reached; median=30 mean=32.5 +- 9.9)
+    hybrid_soft_handoff    cycles per seed: 42 32 30 17              (4/4 reached; median=31 mean=30.2 +- 10.3)
+    cnn                    vs standard: delta_median=+1.0000 wins=2/4 p=0.875 (positive = LATER)   vs dr: delta_median=+1.0000 wins=2/4 p=0.875
+    hybrid_linear          vs standard: delta_median=+8.0000 wins=3/4 p=0.625 (positive = LATER)   vs dr: delta_median=+4.5000 wins=3/4 p=0.250
+    hybrid_soft_handoff    vs standard: delta_median=+3.0000 wins=3/4 p=0.625 (positive = LATER)   vs dr: delta_median=+1.5000 wins=3/4 p=0.625
+    standard               vs dr: delta_median=-3.5000 wins=1/4 p=0.875
+  [threshold 0.5]
+    dr                     cycles per seed: 76 51 44 29              (4/4 reached; median=48 mean=50.0 +- 19.6)
+    standard               cycles per seed: 81 48 75 41              (4/4 reached; median=62 mean=61.2 +- 19.7)
+    cnn                    cycles per seed: 65 63 48 49              (4/4 reached; median=56 mean=56.2 +- 9.0)
+    hybrid_linear          cycles per seed: 81 70 58 51              (4/4 reached; median=64 mean=65.0 +- 13.2)
+    hybrid_soft_handoff    cycles per seed: 82 72 54 33              (4/4 reached; median=63 mean=60.2 +- 21.5)
+    cnn                    vs standard: delta_median=-4.0000 wins=2/4 p=0.625 (positive = LATER)   vs dr: delta_median=+8.0000 wins=3/4 p=0.375
+    hybrid_linear          vs standard: delta_median=+5.0000 wins=2/4 p=0.750 (positive = LATER)   vs dr: delta_median=+16.5000 wins=4/4 p=0.125
+    hybrid_soft_handoff    vs standard: delta_median=-3.5000 wins=2/4 p=1.000 (positive = LATER)   vs dr: delta_median=+8.0000 wins=4/4 p=0.125
+    standard               vs dr: delta_median=+8.5000 wins=3/4 p=0.250
+  [threshold 0.9]
+    dr                     cycles per seed: 83 57 54 36              (4/4 reached; median=56 mean=57.5 +- 19.4)
+    standard               cycles per seed: 89 58 81 47              (4/4 reached; median=70 mean=68.8 +- 19.6)
+    cnn                    cycles per seed: 71 74 56 57              (4/4 reached; median=64 mean=64.5 +- 9.3)
+    hybrid_linear          cycles per seed: 89 75 67 55              (4/4 reached; median=71 mean=71.5 +- 14.3)
+    hybrid_soft_handoff    cycles per seed: 89 78 59 42              (4/4 reached; median=68 mean=67.0 +- 20.8)
+    cnn                    vs standard: delta_median=-4.0000 wins=2/4 p=0.625 (positive = LATER)   vs dr: delta_median=+9.5000 wins=3/4 p=0.375
+    hybrid_linear          vs standard: delta_median=+4.0000 wins=2/4 p=0.750 (positive = LATER)   vs dr: delta_median=+15.5000 wins=4/4 p=0.125
+    hybrid_soft_handoff    vs standard: delta_median=-2.5000 wins=1/4 p=0.750 (positive = LATER)   vs dr: delta_median=+6.0000 wins=4/4 p=0.125
+    standard               vs dr: delta_median=+8.5000 wins=4/4 p=0.125
+

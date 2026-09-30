@@ -1,0 +1,52 @@
+
+=== DOMAIN GATE (CNN arms; xland in-domain member agreement ~0.96) ===
+  cnn                    mean agreement 0.9661  (OK)
+  hybrid_linear          mean agreement 0.9661  (OK)
+  hybrid_soft_handoff    mean agreement 0.9661  (OK)
+
+=== PRIMARY: eval_fixed success rate ===
+method                    final    tail5  early10  early50      auc
+dr                     0.001±0.000 0.001±0.000 0.000±0.000 0.001±0.000 0.000±0.000
+standard               0.000±0.000 0.000±0.000 0.001±0.000 0.001±0.000 0.001±0.000
+cnn                    0.001±0.000 0.001±0.000 0.000±0.000 0.000±0.000 0.001±0.000
+hybrid_linear          0.001±0.000 0.001±0.000 0.001±0.000 0.001±0.000 0.001±0.000
+hybrid_soft_handoff    0.001±0.001 0.001±0.000 0.000±0.000 0.000±0.000 0.001±0.000
+
+--- paired vs standard (tail5 and early50; n=4 => descriptive only) ---
+  [tail5]
+    dr                     median_delta=+0.0001  wins=2/4  p=0.625
+    cnn                    median_delta=+0.0004  wins=3/4  p=0.250
+    hybrid_linear          median_delta=+0.0005  wins=4/4  p=0.125
+    hybrid_soft_handoff    median_delta=+0.0003  wins=4/4  p=0.125
+  [early50]
+    dr                     median_delta=-0.0000  wins=2/4  p=1.000
+    cnn                    median_delta=-0.0000  wins=2/4  p=0.625
+    hybrid_linear          median_delta=+0.0000  wins=2/4  p=0.875
+    hybrid_soft_handoff    median_delta=-0.0001  wins=1/4  p=0.625
+
+=== SECONDARY: eval_bench success rate ===
+method                    final    tail5  early10  early50      auc
+dr                     0.024±0.002 0.025±0.003 0.022±0.002 0.024±0.001 0.024±0.000
+standard               0.024±0.002 0.025±0.003 0.023±0.001 0.024±0.001 0.025±0.000
+cnn                    0.024±0.001 0.026±0.001 0.022±0.001 0.022±0.001 0.024±0.001
+hybrid_linear          0.028±0.002 0.030±0.003 0.022±0.002 0.023±0.002 0.025±0.001
+hybrid_soft_handoff    0.027±0.003 0.028±0.002 0.021±0.002 0.022±0.002 0.025±0.001
+
+=== MECHANISM PANELS (mean over seeds) ===
+--- target_mu: first/mid/last ---
+  cnn                    start 0.05  mid 0.00  end 0.00
+  hybrid_linear          start 0.05  mid 0.00  end 0.00
+  hybrid_soft_handoff    start 0.05  mid 0.00  end 0.00
+--- soft_handoff gate: fraction of cycles with alpha < 1 ---
+  alpha<1 in 100.0% of cycles (jaxnav: 2.2% — gate engaged means the arm is a real method here)
+--- batch solvability (fresh DR levels), first10/last10 mean ---
+  standard               first10 0.0005   last10 0.0006
+  hybrid_linear          first10 0.0005   last10 0.0011
+  hybrid_soft_handoff    first10 0.0003   last10 0.0008
+
+--- learning curves (fixed eval, mean over seeds, every 20th cycle) ---
+  dr                     0.000 0.001 0.001 0.001 0.000 0.001 0.001 0.001 0.001 0.000 0.000 0.000 0.001 0.000 0.000 0.000 0.000 0.000 0.001
+  standard               0.000 0.000 0.001 0.001 0.001 0.000 0.001 0.000 0.001 0.000 0.000 0.000 0.001 0.001 0.000 0.001 0.000 0.000 0.001
+  cnn                    0.000 0.000 0.000 0.001 0.000 0.001 0.001 0.001 0.000 0.000 0.001 0.000 0.001 0.000 0.000 0.001 0.000 0.001 0.001
+  hybrid_linear          0.001 0.000 0.001 0.001 0.001 0.001 0.000 0.001 0.000 0.000 0.000 0.000 0.001 0.001 0.001 0.001 0.001 0.001 0.002
+  hybrid_soft_handoff    0.001 0.000 0.000 0.000 0.001 0.000 0.001 0.001 0.000 0.001 0.001 0.001 0.000 0.001 0.001 0.001 0.001 0.001 0.001

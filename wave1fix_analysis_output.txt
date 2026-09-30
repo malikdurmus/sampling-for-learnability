@@ -1,0 +1,63 @@
+
+=== DOMAIN SANITY GATE ===
+cnn/member_rank_agreement across all 50 CNN-arm runs: mean 0.8368  range [0.8362, 0.8379]
+(in-domain reference ~0.84; corrupted reference ~0.988)
+all runs in-domain: OK
+
+=== SAMPLED TEST (100 fixed DR levels), overall_win_rate ===
+method                            final    tail5   early5      auc
+dr                             0.934±0.015 0.930±0.012 0.472±0.029 0.846±0.009
+standard                       0.982±0.006 0.980±0.006 0.538±0.023 0.894±0.010
+cnn                            0.945±0.012 0.942±0.013 0.519±0.017 0.850±0.009
+hybrid_linear                  0.979±0.005 0.977±0.005 0.550±0.015 0.901±0.005
+hybrid_soft_handoff            0.975±0.005 0.972±0.007 0.535±0.023 0.888±0.018
+hybrid_learnability_weighted   0.965±0.013 0.965±0.014 0.541±0.018 0.886±0.011
+hybrid_multiplicative          0.959±0.013 0.959±0.014 0.533±0.015 0.875±0.009
+
+--- paired vs standard (tail5): per-seed deltas ---
+dr                             median_delta=-0.0507  wins=0/10  p=0.0020
+cnn                            median_delta=-0.0399  wins=0/10  p=0.0020
+hybrid_linear                  median_delta=-0.0080  wins=3/10  p=0.4316
+hybrid_soft_handoff            median_delta=-0.0113  wins=2/10  p=0.0273
+hybrid_learnability_weighted   median_delta=-0.0113  wins=1/10  p=0.0039
+hybrid_multiplicative          median_delta=-0.0176  wins=1/10  p=0.0039
+
+Holm over 6 comparisons (alpha=0.05):
+  cnn                            p=0.0020  threshold=0.0083  -> SIGNIFICANT
+  dr                             p=0.0020  threshold=0.0100  -> SIGNIFICANT
+  hybrid_learnability_weighted   p=0.0039  threshold=0.0125  -> SIGNIFICANT
+  hybrid_multiplicative          p=0.0039  threshold=0.0167  -> SIGNIFICANT
+  hybrid_soft_handoff            p=0.0273  threshold=0.0250  -> not significant
+
+--- early phase (cold start, first 5 cycles) vs standard ---
+dr                             median_delta=-0.0670  wins=0/10  p=0.0020
+cnn                            median_delta=-0.0233  wins=3/10  p=0.0645
+hybrid_linear                  median_delta=+0.0046  wins=6/10  p=0.2324
+hybrid_soft_handoff            median_delta=-0.0073  wins=4/10  p=0.9219
+hybrid_learnability_weighted   median_delta=-0.0035  wins=4/10  p=0.9219
+hybrid_multiplicative          median_delta=-0.0104  wins=4/10  p=0.4922
+
+--- singleton test (5 hand-designed maps), tail5 ---
+dr                             0.583 ± 0.033
+standard                       0.700 ± 0.059
+cnn                            0.616 ± 0.025
+hybrid_linear                  0.641 ± 0.059
+hybrid_soft_handoff            0.668 ± 0.069
+hybrid_learnability_weighted   0.612 ± 0.017
+hybrid_multiplicative          0.609 ± 0.026
+
+--- passable fraction of trained-on envs (tail5) ---
+dr                             0.824 ± 0.012
+standard                       0.829 ± 0.012
+cnn                            0.640 ± 0.014
+hybrid_linear                  0.654 ± 0.006
+hybrid_soft_handoff            0.826 ± 0.011
+hybrid_learnability_weighted   0.508 ± 0.011
+hybrid_multiplicative          0.645 ± 0.011
+
+=== OLD (confounded) vs FIXED, per CNN arm, tail5 sampled ===
+cnn                            old 0.910 -> fixed 0.942  (delta +0.032)
+hybrid_linear                  old 0.969 -> fixed 0.977  (delta +0.007)
+hybrid_soft_handoff            old 0.975 -> fixed 0.972  (delta -0.002)
+hybrid_learnability_weighted   old 0.957 -> fixed 0.965  (delta +0.008)
+hybrid_multiplicative          old 0.941 -> fixed 0.959  (delta +0.019)

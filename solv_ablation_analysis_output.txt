@@ -1,0 +1,65 @@
+Solvability-filtered ablation (JaxNav, valid_path_check=True), 45 evals/run
+run ids: cnn/1:nnfl972i, cnn/10:xi1c47ri, cnn/2:zdwhymd6, cnn/3:xv7fyadi, cnn/4:x4t8k95c, cnn/5:zvrfadis, cnn/6:5iymn3kj, cnn/7:ylj6ff4h, cnn/8:spkg8gvn, cnn/9:d276vusm, hybrid_linear/1:ygq9bzzg, hybrid_linear/10:chhx8vg2, hybrid_linear/2:b2c334j2, hybrid_linear/3:lxe59w1b, hybrid_linear/4:eduremkk, hybrid_linear/5:4n3tvz9i, hybrid_linear/6:h9a9xany, hybrid_linear/7:j4qeinzm, hybrid_linear/8:h837hues, hybrid_linear/9:hylvgjxi, solv_cnn/1:8bfuwq1w, solv_cnn/10:r67vg1nt, solv_cnn/2:5naxsx34, solv_cnn/3:5x8vpjt1, solv_cnn/4:9m76eskw, solv_cnn/5:9xi8vfot, solv_cnn/6:bppsq8m6, solv_cnn/7:wrlkq9p5, solv_cnn/8:hfr1ka6t, solv_cnn/9:ndgrob1l, solv_hybrid_linear/1:oeqkg0rd, solv_hybrid_linear/10:ax48tj24, solv_hybrid_linear/2:ggl96z5t, solv_hybrid_linear/3:c2dqzs6o, solv_hybrid_linear/4:rjcdxxl9, solv_hybrid_linear/5:adg26cg0, solv_hybrid_linear/6:0zhu0g32, solv_hybrid_linear/7:617rqoag, solv_hybrid_linear/8:arqwrbpc, solv_hybrid_linear/9:7jekl15v, solv_standard/1:gjtwsnyo, solv_standard/10:9yk4jnyn, solv_standard/2:eu0vw0af, solv_standard/3:vtpnfowz, solv_standard/4:rnzzs3l3, solv_standard/5:bq72h9xp, solv_standard/6:3bfrvqvu, solv_standard/7:l6sin2l4, solv_standard/8:l0jyv0xr, solv_standard/9:71v1w5ob, standard/1:gqgvmgfc, standard/10:mkmqi5ns, standard/2:vraw6hp3, standard/3:unglvvf4, standard/4:nttmw01g, standard/5:2ljn0vgl, standard/6:kdlaj23c, standard/7:f07859ag, standard/8:f37ybnvs, standard/9:2cl467bk
+
+== frozen 100-level eval set win rate ==
+  [tail-5]
+    solv_standard        0.986 +- 0.004   per-seed: 0.982 0.986 0.987 0.980 0.982 0.991 0.992 0.990 0.983 0.985
+    solv_cnn             0.971 +- 0.009   per-seed: 0.970 0.955 0.973 0.975 0.966 0.960 0.981 0.983 0.964 0.979
+    solv_hybrid_linear   0.991 +- 0.004   per-seed: 0.997 0.992 0.996 0.990 0.983 0.994 0.986 0.992 0.987 0.991
+    standard             0.980 +- 0.007   per-seed: 0.982 0.983 0.974 0.976 0.983 0.986 0.986 0.985 0.965 0.981
+    cnn                  0.942 +- 0.013   per-seed: 0.959 0.942 0.935 0.927 0.934 0.939 0.957 0.963 0.937 0.924
+    hybrid_linear        0.977 +- 0.005   per-seed: 0.978 0.972 0.983 0.986 0.969 0.977 0.979 0.976 0.978 0.969
+    -- paired WITHIN the filtered generator (10 seeds, exact Wilcoxon):
+    solv_cnn             vs solv_standard: delta_median=-0.0135 wins=0/10 p_raw=0.0020
+    solv_hybrid_linear   vs solv_standard: delta_median=+0.0051 wins=9/10 p_raw=0.0273
+    solv_cnn             Holm-adjusted (m=2): p=0.0039
+    solv_hybrid_linear   Holm-adjusted (m=2): p=0.0273
+    -- filtered vs unfiltered, same arm (DESCRIPTIVE; treatment=generator; seeds matched, hardware differs for seeds 1-2):
+    solv_standard        vs standard: delta_median=+0.0048 wins=9/10 (p_raw=0.0059, descriptive)
+    solv_cnn             vs cnn: delta_median=+0.0255 wins=10/10 (p_raw=0.0020, descriptive)
+    solv_hybrid_linear   vs hybrid_linear: delta_median=+0.0149 wins=10/10 (p_raw=0.0020, descriptive)
+  [first-5]
+    solv_standard        0.565 +- 0.009   per-seed: 0.568 0.573 0.570 0.566 0.558 0.552 0.573 0.549 0.573 0.574
+    solv_cnn             0.528 +- 0.029   per-seed: 0.514 0.557 0.532 0.572 0.568 0.491 0.521 0.527 0.498 0.500
+    solv_hybrid_linear   0.562 +- 0.014   per-seed: 0.550 0.582 0.576 0.566 0.558 0.555 0.574 0.553 0.535 0.573
+    standard             0.538 +- 0.024   per-seed: 0.522 0.566 0.488 0.561 0.526 0.542 0.541 0.534 0.530 0.568
+    cnn                  0.519 +- 0.018   per-seed: 0.482 0.511 0.528 0.512 0.538 0.522 0.527 0.543 0.503 0.519
+    hybrid_linear        0.550 +- 0.016   per-seed: 0.561 0.559 0.544 0.562 0.526 0.522 0.568 0.542 0.564 0.551
+    -- paired WITHIN the filtered generator (10 seeds, exact Wilcoxon):
+    solv_cnn             vs solv_standard: delta_median=-0.0449 wins=2/10 p_raw=0.0098
+    solv_hybrid_linear   vs solv_standard: delta_median=+0.0003 wins=6/10 p_raw=0.7695
+    -- filtered vs unfiltered, same arm (DESCRIPTIVE; treatment=generator; seeds matched, hardware differs for seeds 1-2):
+    solv_standard        vs standard: delta_median=+0.0232 wins=10/10 (p_raw=0.0020, descriptive)
+    solv_cnn             vs cnn: delta_median=-0.0005 wins=5/10 (p_raw=0.5566, descriptive)
+    solv_hybrid_linear   vs hybrid_linear: delta_median=+0.0162 wins=8/10 (p_raw=0.0840, descriptive)
+  [first-10]
+    solv_standard        0.735 +- 0.008   per-seed: 0.745 0.738 0.731 0.729 0.727 0.731 0.749 0.723 0.742 0.732
+    solv_cnn             0.670 +- 0.026   per-seed: 0.672 0.664 0.683 0.710 0.707 0.623 0.674 0.670 0.651 0.648
+    solv_hybrid_linear   0.727 +- 0.011   per-seed: 0.722 0.741 0.738 0.730 0.711 0.721 0.742 0.722 0.716 0.723
+    standard             0.701 +- 0.025   per-seed: 0.702 0.736 0.658 0.724 0.670 0.691 0.718 0.686 0.696 0.725
+    cnn                  0.653 +- 0.020   per-seed: 0.634 0.648 0.666 0.664 0.669 0.624 0.667 0.683 0.635 0.637
+    hybrid_linear        0.712 +- 0.013   per-seed: 0.716 0.708 0.701 0.732 0.688 0.707 0.730 0.708 0.718 0.712
+    -- paired WITHIN the filtered generator (10 seeds, exact Wilcoxon):
+    solv_cnn             vs solv_standard: delta_median=-0.0731 wins=0/10 p_raw=0.0020
+    solv_hybrid_linear   vs solv_standard: delta_median=-0.0077 wins=3/10 p_raw=0.0645
+    -- filtered vs unfiltered, same arm (DESCRIPTIVE; treatment=generator; seeds matched, hardware differs for seeds 1-2):
+    solv_standard        vs standard: delta_median=+0.0384 wins=10/10 (p_raw=0.0020, descriptive)
+    solv_cnn             vs cnn: delta_median=+0.0163 wins=8/10 (p_raw=0.0195, descriptive)
+    solv_hybrid_linear   vs hybrid_linear: delta_median=+0.0131 wins=8/10 (p_raw=0.0098, descriptive)
+
+== singleton suite overall win rate ==
+  [tail-5]
+    solv_standard        0.925 +- 0.076   per-seed: 0.837 1.000 0.983 0.900 0.971 0.799 0.996 0.958 0.836 0.974
+    solv_cnn             0.838 +- 0.099   per-seed: 0.817 0.746 0.978 0.790 0.723 0.748 0.795 0.988 0.850 0.944
+    solv_hybrid_linear   0.951 +- 0.052   per-seed: 1.000 0.977 0.951 0.832 0.903 0.961 0.929 0.960 1.000 0.993
+    standard             0.700 +- 0.062   per-seed: 0.600 0.716 0.604 0.712 0.720 0.676 0.766 0.733 0.684 0.792
+    cnn                  0.616 +- 0.027   per-seed: 0.600 0.596 0.595 0.633 0.634 0.627 0.678 0.601 0.600 0.600
+    hybrid_linear        0.641 +- 0.062   per-seed: 0.600 0.608 0.771 0.745 0.600 0.620 0.616 0.604 0.624 0.624
+    -- paired WITHIN the filtered generator (10 seeds, exact Wilcoxon):
+    solv_cnn             vs solv_standard: delta_median=-0.0406 wins=2/10 p_raw=0.0371
+    solv_hybrid_linear   vs solv_standard: delta_median=-0.0103 wins=5/10 p_raw=0.8457
+    -- filtered vs unfiltered, same arm (DESCRIPTIVE; treatment=generator; seeds matched, hardware differs for seeds 1-2):
+    solv_standard        vs standard: delta_median=+0.2274 wins=10/10 (p_raw=0.0020, descriptive)
+    solv_cnn             vs cnn: delta_median=+0.1875 wins=10/10 (p_raw=0.0020, descriptive)
+    solv_hybrid_linear   vs hybrid_linear: delta_median=+0.3487 wins=10/10 (p_raw=0.0020, descriptive)
+

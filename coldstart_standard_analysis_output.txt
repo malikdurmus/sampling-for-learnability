@@ -1,0 +1,175 @@
+COLD START OF STANDARD SFL — environment characterisation (generated 2026-09-12 18:25Z)
+
+== 0. Runs and self-checks ==
+  jaxnav_norm|crosscheck|1       standard_seed1           id=gqgvmgfc cycles= 45 hist_cycles=  0 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  jaxnav_norm|crosscheck|10      standard_seed10          id=mkmqi5ns cycles= 45 hist_cycles=  0 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  jaxnav_norm|crosscheck|2       standard_seed2           id=vraw6hp3 cycles= 45 hist_cycles=  0 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  jaxnav_norm|crosscheck|3       standard_seed3           id=unglvvf4 cycles= 45 hist_cycles=  0 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  jaxnav_norm|crosscheck|4       standard_seed4           id=nttmw01g cycles= 45 hist_cycles=  0 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  jaxnav_norm|crosscheck|5       standard_seed5           id=2ljn0vgl cycles= 45 hist_cycles=  0 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  jaxnav_norm|crosscheck|6       standard_seed6           id=kdlaj23c cycles= 45 hist_cycles=  0 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  jaxnav_norm|crosscheck|7       standard_seed7           id=f07859ag cycles= 45 hist_cycles=  0 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  jaxnav_norm|crosscheck|8       standard_seed8           id=f37ybnvs cycles= 45 hist_cycles=  0 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  jaxnav_norm|crosscheck|9       standard_seed9           id=2cl467bk cycles= 45 hist_cycles=  0 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  jaxnav_norm|primary|1          norm_standard_seed1      id=6utwfnj9 cycles= 45 hist_cycles= 45 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  jaxnav_norm|primary|2          norm_standard_seed2      id=4r7y3rp1 cycles= 45 hist_cycles= 45 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  jaxnav_norm|primary|3          norm_standard_seed3      id=r9llqxr2 cycles= 45 hist_cycles= 45 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  jaxnav_norm|primary|4          norm_standard_seed4      id=wkia7l20 cycles= 45 hist_cycles= 45 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  jaxnav_solv|crosscheck|1       solv_standard_seed1      id=gjtwsnyo cycles= 45 hist_cycles= 45 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  jaxnav_solv|crosscheck|10      solv_standard_seed10     id=9yk4jnyn cycles= 45 hist_cycles= 45 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  jaxnav_solv|crosscheck|2       solv_standard_seed2      id=eu0vw0af cycles= 45 hist_cycles= 45 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  jaxnav_solv|crosscheck|3       solv_standard_seed3      id=vtpnfowz cycles= 45 hist_cycles= 45 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  jaxnav_solv|crosscheck|4       solv_standard_seed4      id=rnzzs3l3 cycles= 45 hist_cycles= 45 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  jaxnav_solv|crosscheck|5       solv_standard_seed5      id=bq72h9xp cycles= 45 hist_cycles= 45 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  jaxnav_solv|crosscheck|6       solv_standard_seed6      id=3bfrvqvu cycles= 45 hist_cycles= 45 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  jaxnav_solv|crosscheck|7       solv_standard_seed7      id=l6sin2l4 cycles= 45 hist_cycles= 45 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  jaxnav_solv|crosscheck|8       solv_standard_seed8      id=l0jyv0xr cycles= 45 hist_cycles= 45 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  jaxnav_solv|crosscheck|9       solv_standard_seed9      id=71v1w5ob cycles= 45 hist_cycles= 45 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  jaxnav_solv|primary|1          solv_standard_seed1      id=7yjqw20y cycles= 45 hist_cycles= 45 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  jaxnav_solv|primary|2          solv_standard_seed2      id=7sge4qxt cycles= 45 hist_cycles= 45 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  jaxnav_solv|primary|3          solv_standard_seed3      id=2gng4syl cycles= 45 hist_cycles= 45 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  jaxnav_solv|primary|4          solv_standard_seed4      id=l1dtb5ni cycles= 45 hist_cycles= 45 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  xland_difficult|primary|1      xl_standard_seed1        id=1dvr55wf cycles=366 hist_cycles=366 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  xland_difficult|primary|2      xl_standard_seed2        id=4jxountz cycles=366 hist_cycles=366 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  xland_difficult|primary|3      xl_standard_seed3        id=a7488fn4 cycles=366 hist_cycles=366 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  xland_difficult|primary|4      xl_standard_seed4        id=6phin4sm cycles=366 hist_cycles=366 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  xland_medium|primary|1         xlm_standard_seed1       id=gxc6234y cycles=366 hist_cycles=366 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  xland_medium|primary|2         xlm_standard_seed2       id=4d4gd5v9 cycles=366 hist_cycles=366 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  xland_medium|primary|3         xlm_standard_seed3       id=8liiejhd cycles=366 hist_cycles=366 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+  xland_medium|primary|4         xlm_standard_seed4       id=hym2l37s cycles=366 hist_cycles=366 hist_total==5000:ok batchmean>=0.09*nonzero: ok
+
+== 1. Candidate batch (5000 fresh levels) and buffer per cycle — mean±std over seeds (population std) ==
+
+-- jaxnav_norm (n=4 standard runs, 45 cycles) --
+   cyc   cand succ  cand p(1-p)  cand max    zero%  nonzero  filler%  buffer p(1-p)  enrich  worst20    eval
+     0  0.0193±0.001  0.0129±0.000     0.250    91.9%      407    59.3%    0.0644±0.002    5.00   0.0000   0.021
+     1  0.2233±0.060  0.0371±0.010     0.250    83.7%      816    20.3%    0.1828±0.045    4.93   0.0000   0.423
+     2  0.5583±0.043  0.0319±0.007     0.250    83.9%      805    22.1%    0.1572±0.030    4.93   0.0000   0.708
+     3  0.6095±0.028  0.0273±0.004     0.250    84.0%      802    19.8%    0.1365±0.019    5.00   0.0000   0.743
+     5  0.7017±0.012  0.0241±0.005     0.250    85.1%      745    25.5%    0.1207±0.025    5.00   0.0000   0.840
+    10  0.7604±0.007  0.0138±0.003     0.250    91.1%      446    55.4%    0.0691±0.015    5.00   0.0000   0.914
+    25  0.7810±0.007  0.0071±0.002     0.250    95.6%      222    77.8%    0.0355±0.011    5.00   0.0000   0.960
+    44  0.7942±0.005  0.0030±0.000     0.250    98.2%       88    91.2%    0.0152±0.001    5.00   0.0000   0.978
+
+-- jaxnav_solv (n=4 standard runs, 45 cycles) --
+   cyc   cand succ  cand p(1-p)  cand max    zero%  nonzero  filler%  buffer p(1-p)  enrich  worst20    eval
+     0  0.0236±0.001  0.0158±0.000     0.250    89.9%      506    49.4%    0.0791±0.002    5.00   0.0000   0.021
+     1  0.3111±0.020  0.0613±0.003     0.250    72.3%     1387     0.0%    0.2415±0.001    3.94   0.0000   0.476
+     2  0.6704±0.016  0.0580±0.023     0.250    68.6%     1570     6.3%    0.2035±0.033    3.51   0.0000   0.708
+     3  0.7621±0.061  0.0475±0.021     0.250    72.4%     1378    13.3%    0.1792±0.057    3.77   0.0000   0.774
+     5  0.8635±0.048  0.0368±0.007     0.250    77.0%     1152     4.1%    0.1668±0.024    4.53   0.0000   0.858
+    10  0.9508±0.013  0.0178±0.005     0.250    88.1%      594    40.6%    0.0891±0.027    5.00   0.0000   0.944
+    25  0.9786±0.004  0.0059±0.002     0.250    96.2%      191    80.9%    0.0295±0.010    5.00   0.0000   0.984
+    44  0.9821±0.005  0.0042±0.001     0.250    97.5%      124    87.6%    0.0208±0.005    5.00   0.0000   0.989
+
+-- xland_medium (n=4 standard runs, 366 cycles) --
+   cyc   cand succ  cand p(1-p)  cand max    zero%  nonzero  filler%  buffer p(1-p)  enrich  worst20    eval
+     0  0.0131±0.001  0.0103±0.000     0.245    93.7%      314    68.6%    0.0514±0.002    5.00   0.0000   0.019
+     1  0.0172±0.006  0.0135±0.004     0.243    91.8%      408    59.2%    0.0674±0.022    5.00   0.0000   0.024
+     2  0.0238±0.008  0.0185±0.006     0.248    88.9%      556    44.5%    0.0923±0.032    5.00   0.0000   0.027
+     5  0.0350±0.008  0.0270±0.006     0.249    83.9%      805    21.6%    0.1316±0.025    4.87   0.0000   0.042
+    10  0.0479±0.013  0.0364±0.009     0.250    78.6%     1068     8.3%    0.1577±0.018    4.34   0.0000   0.053
+    25  0.0794±0.040  0.0575±0.027     0.250    67.6%     1618     4.9%    0.1807±0.032    3.14   0.0000   0.081
+    50  0.5133±0.324  0.1209±0.069     0.227    33.0%     3351     0.0%    0.1949±0.084    1.61   0.0000   0.543
+    75  0.6942±0.315  0.0944±0.095     0.157    53.7%     2314    40.5%    0.1261±0.122    1.34   0.0000   0.738
+   100  0.9988±0.001  0.0012±0.001     0.055    95.2%      239    76.1%    0.0059±0.005    5.00   0.0000   0.999
+   150  0.9998±0.000  0.0002±0.000     0.044    98.9%       54    94.6%    0.0011±0.000    5.00   0.0000   1.000
+   365  0.9999±0.000  0.0001±0.000     0.019    99.2%       38    96.2%    0.0006±0.000    5.00   0.0000   1.000
+
+-- xland_difficult (n=4 standard runs, 366 cycles) --
+   cyc   cand succ  cand p(1-p)  cand max    zero%  nonzero  filler%  buffer p(1-p)  enrich  worst20    eval
+     0  0.0004±0.000  0.0003±0.000     0.181    99.8%       10    99.0%    0.0016±0.000    5.00   0.0000   0.000
+     1  0.0003±0.000  0.0003±0.000     0.174    99.8%        8    99.2%    0.0014±0.001    5.00   0.0000   0.000
+     2  0.0005±0.000  0.0004±0.000     0.174    99.8%       12    98.8%    0.0019±0.001    5.00   0.0000   0.000
+     5  0.0006±0.000  0.0005±0.000     0.174    99.7%       14    98.6%    0.0023±0.001    5.00   0.0000   0.001
+    10  0.0004±0.000  0.0003±0.000     0.181    99.8%        9    99.1%    0.0015±0.000    5.00   0.0000   0.000
+    25  0.0004±0.000  0.0003±0.000     0.188    99.8%       10    99.0%    0.0017±0.001    5.00   0.0000   0.000
+    50  0.0006±0.000  0.0005±0.000     0.181    99.7%       14    98.6%    0.0023±0.001    5.00   0.0000   0.001
+   100  0.0006±0.000  0.0005±0.000     0.181    99.7%       14    98.6%    0.0023±0.001    5.00   0.0000   0.000
+   200  0.0006±0.000  0.0005±0.000     0.188    99.7%       14    98.6%    0.0023±0.001    5.00   0.0000   0.000
+   365  0.0007±0.000  0.0006±0.000     0.188    99.6%       18    98.2%    0.0028±0.001    5.00   0.0000   0.000
+
+== 1b. Episode budget behind the per-level estimate (from the smallest nonzero score in the cycle-0 and cycle-25 histograms) ==
+  jaxnav_norm      cycle  0: smallest nonzero p(1-p) = 0.0898 -> most episodes a level completed ~ 10; a level with true p = 0.1 then scores 0 with probability 0.35
+  jaxnav_norm      cycle 25: smallest nonzero p(1-p) = 0.0898 -> most episodes a level completed ~ 10; a level with true p = 0.1 then scores 0 with probability 0.35
+  jaxnav_solv      cycle  0: smallest nonzero p(1-p) = 0.0898 -> most episodes a level completed ~ 10; a level with true p = 0.1 then scores 0 with probability 0.35
+  jaxnav_solv      cycle 25: smallest nonzero p(1-p) = 0.0898 -> most episodes a level completed ~ 10; a level with true p = 0.1 then scores 0 with probability 0.35
+  xland_medium     cycle  0: smallest nonzero p(1-p) = 0.1569 -> most episodes a level completed ~ 5; a level with true p = 0.1 then scores 0 with probability 0.58
+  xland_medium     cycle 25: smallest nonzero p(1-p) = 0.1562 -> most episodes a level completed ~ 5; a level with true p = 0.1 then scores 0 with probability 0.58
+  xland_difficult  cycle  0: smallest nonzero p(1-p) = 0.1580 -> most episodes a level completed ~ 5; a level with true p = 0.1 then scores 0 with probability 0.59
+  xland_difficult  cycle 25: smallest nonzero p(1-p) = 0.1582 -> most episodes a level completed ~ 5; a level with true p = 0.1 then scores 0 with probability 0.59
+
+== 2. Cold-start durations: first cycle (0-based) at which the quantity reaches the threshold, per seed ==
+-- jaxnav_norm --
+  candidate success >= 0.05: [1 1 1 1]
+  candidate success >= 0.2 : [2 1 2 1]
+  candidate success >= 0.5 : [2 2 3 2]
+  nonzero-score share >= 0.25: [never never never never]   (buffer no longer padded when nonzero >= 1000, i.e. share >= 0.2)
+  nonzero-score share >= 0.5 : [never never never never]   (buffer no longer padded when nonzero >= 1000, i.e. share >= 0.2)
+  buffer padded (nonzero < 1000) in cycles: [45, 44, 44, 43] of 45; padded in ALL of the first 10: [True, False, False, False]
+  eval >= 0.1 : [1 1 1 1]
+  eval >= 0.5 : [2 2 2 1]
+  eval >= 0.9 : [11 8 9 9]
+  cross-check, old campaign (n=10): candidate success >= 0.5 at [2 2 3 2 2 2 2 2 2 2]; eval >= 0.5 at [2 2 2 1 2 2 2 1 2 2]; (no histograms logged in these runs)
+-- jaxnav_solv --
+  candidate success >= 0.05: [1 1 1 1]
+  candidate success >= 0.2 : [1 1 1 1]
+  candidate success >= 0.5 : [2 2 2 2]
+  nonzero-score share >= 0.25: [1 1 1 1]   (buffer no longer padded when nonzero >= 1000, i.e. share >= 0.2)
+  nonzero-score share >= 0.5 : [never never never never]   (buffer no longer padded when nonzero >= 1000, i.e. share >= 0.2)
+  buffer padded (nonzero < 1000) in cycles: [40, 42, 41, 41] of 45; padded in ALL of the first 10: [False, False, False, False]
+  eval >= 0.1 : [1 1 1 1]
+  eval >= 0.5 : [2 2 1 2]
+  eval >= 0.9 : [7 6 9 7]
+  cross-check, old campaign (n=10): candidate success >= 0.5 at [2 2 2 2 2 2 2 2 2 2]; eval >= 0.5 at [2 1 2 2 2 2 2 2 2 2]; zero% at cycles 0/1/2: [90.2, 73.4, 65.7]
+-- xland_medium --
+  candidate success >= 0.05: [18 10 28 6]
+  candidate success >= 0.2 : [52 34 46 33]
+  candidate success >= 0.5 : [81 48 76 41]
+  nonzero-score share >= 0.25: [18 11 30 7]   (buffer no longer padded when nonzero >= 1000, i.e. share >= 0.2)
+  nonzero-score share >= 0.5 : [41 32 42 15]   (buffer no longer padded when nonzero >= 1000, i.e. share >= 0.2)
+  buffer padded (nonzero < 1000) in cycles: [288, 312, 301, 320] of 366; padded in ALL of the first 10: [True, False, True, False]
+  eval >= 0.1 : [38 14 39 13]
+  eval >= 0.5 : [80 47 74 40]
+  eval >= 0.9 : [88 57 80 46]
+-- xland_difficult --
+  candidate success >= 0.05: [never never never never]
+  candidate success >= 0.2 : [never never never never]
+  candidate success >= 0.5 : [never never never never]
+  nonzero-score share >= 0.25: [never never never never]   (buffer no longer padded when nonzero >= 1000, i.e. share >= 0.2)
+  nonzero-score share >= 0.5 : [never never never never]   (buffer no longer padded when nonzero >= 1000, i.e. share >= 0.2)
+  buffer padded (nonzero < 1000) in cycles: [366, 366, 366, 366] of 366; padded in ALL of the first 10: [True, True, True, True]
+  eval >= 0.1 : [never never never never]
+  eval >= 0.5 : [never never never never]
+  eval >= 0.9 : [never never never never]
+
+== 3. Inside cycle 0 (jaxnav, per PPO update; 256 training envs = 128 fresh DR + 128 from the buffer) ==
+-- jaxnav_norm (n=4) --
+    updates goal-reaches  collisions  timeouts  episodes  goal share  succ fresh-DR half  succ buffer half
+        1-1         56.2      1726.0       7.8    1788.0       0.031               0.029             0.048
+        2-5         45.8      1376.9      16.7    1438.1       0.032               0.017             0.062
+       6-10         38.3       983.8      39.5    1061.0       0.036               0.025             0.069
+      11-20         31.8       554.7      86.1     672.4       0.047               0.032             0.076
+      21-30         40.5       255.1     136.2     431.6       0.094               0.057             0.106
+      31-50         90.5       117.4     152.7     360.4       0.251               0.139             0.213
+     51-100        447.6       104.4      72.9     623.4       0.718               0.426             0.663
+  first update with fresh-DR success >= 0.2 / 0.5, per seed: [50, 47, 50, 38] / [75, 73, 95, 59]  (update index = position+1)
+-- jaxnav_solv (n=4) --
+    updates goal-reaches  collisions  timeouts  episodes  goal share  succ fresh-DR half  succ buffer half
+        1-1         64.2      1552.2       7.2    1622.8       0.040               0.028             0.071
+        2-5         60.9      1218.7      18.1    1296.6       0.047               0.027             0.081
+       6-10         46.0       863.7      38.5     947.5       0.049               0.030             0.082
+      11-20         43.6       485.7      87.8     616.8       0.071               0.041             0.103
+      21-30         71.0       247.2     127.2     444.8       0.160               0.095             0.163
+      31-50        158.7       133.0     125.4     416.4       0.381               0.218             0.332
+     51-100        512.0       110.0      48.3     667.8       0.767               0.558             0.747
+  first update with fresh-DR success >= 0.2 / 0.5, per seed: [38, 32, 32, 33] / [59, 64, 58, 66]  (update index = position+1)
+
+== 4. Per-level picture at cycle 0: untrained policy on 1000 random jaxnav levels (probe_coldstart.npz, default generator) ==
+  levels 1000; share with p == 0: 0.914; share with p == 1: 0.000; pooled success (episode-weighted): 0.0127; mean p (level-weighted): 0.0197
+  episodes per level: median 10, min 2.0, max 68.0, share with <= 2 episodes 0.059, share with >= 10 episodes 0.507
+  score p(1-p): mean 0.0133 (ceiling 0.25), share nonzero 0.086, top-1000-equivalent: with 1000 of 5000 slots the buffer would hold 430 nonzero levels -> filler 57%
+  among levels with p > 0: median p 0.200, share with p <= 0.2: 0.570; corr(n_episodes, p) = -0.101
+
+figures: coldstart_standard_fig_envs.png (4 environments x [candidate success & learnability | zero-score & padding share]),
+         coldstart_standard_fig_jaxnav_cycle0.png (per-update success of both training halves, episode-end composition, cycle-0 per-level histogram)
