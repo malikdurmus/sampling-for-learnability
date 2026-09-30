@@ -32,6 +32,12 @@ learning:
 #   "standard"              - Bare SFL (empirical rollouts only)
 #   "random"                - Random baseline
 #   "cnn"                   - CNN-only with CURRICULUM_STRATEGY
+#   "dijkstra"              - Heuristic shortest-path difficulty (no CNN)
+#   "progress"              - Dense learnability: var over episodes of
+#                             end-based goal-proximity progress (no CNN, no mu)
+#   "progress_mindist"      - Same but progress from closest approach (d_min)
+#   "progress_mean"         - mp*(1-mp), mp = mean end-based progress
+#                             (half-completion targeting; no CNN, no mu)
 #   "hybrid_linear"         - Hybrid: (4*sfl) + cnn_proximity
 #   "hybrid_soft_handoff"   - Hybrid: alpha-blended SFL/CNN
 #   "hybrid_learnability_weighted" - Hybrid: inverse-SFL-weighted CNN
@@ -45,3 +51,17 @@ CURRICULUM_STRATEGY: "performance_adaptive" # "time_based", "performance_adaptiv
 CURRICULUM_START_MU: 0.05
 CURRICULUM_STEP_SIZE: 0.05
 CURRICULUM_GAUSSIAN_VAR: 0.1
+
+
+CNN_CHECKPOINT_PATHS:
+  - /home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/ensemble/jaxnav/ens-jaxnav-aug-init100/epoch_26
+  - /home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/ensemble/jaxnav/ens-jaxnav-aug-init101/epoch_22
+  - /home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/ensemble/jaxnav/ens-jaxnav-aug-init102/epoch_41
+  - /home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/ensemble/jaxnav/ens-jaxnav-aug-init103/epoch_32
+  - /home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/ensemble/jaxnav/ens-jaxnav-aug-init104/epoch_28
+
+CNN_SCORE_METHOD: "percentile"
+
+# Frozen-reference percentile calibration (used when CNN_SCORE_METHOD=percentile)
+PERCENTILE_REF_SIZE: 10000
+PERCENTILE_REF_SEED: 4242  # shared across runs/seeds so scores stay comparable

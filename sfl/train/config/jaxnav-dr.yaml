@@ -1,6 +1,8 @@
+#not used
+
 defaults:
-  - env: robsim
-  - learning: ippo-robsim
+  - env: jaxnav
+  - learning: ippo-jaxnav
   - _self_
 
 "SEED": 2

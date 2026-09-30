@@ -32,7 +32,8 @@ env_params:
   map_id: "Grid-Rand-Poly"  # Grid-Rand, Grid-PreSpec, Polygon, Grid-Test2
   map_params:
     map_size: [11, 11]
-    fill: 0.6
+    min_fill: 0.0
+    max_fill: 0.6
     start_pad: 1.5
     valid_path_check: False
     sample_test_case_type: "random"

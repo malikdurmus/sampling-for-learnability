@@ -9,7 +9,7 @@ print(f"Using PRNG seed: {seed}")
 
 env1 = JaxNav(num_agents=1,map_params=  {
     "map_size": (11, 11),
-    "check_valid_path" : True
+    "valid_path_check" : True
 })
 
 
