@@ -1,0 +1,65 @@
+/home/d/durmusy/Desktop/GIT/updatedjnavwsfl/sampling-for-learnability/.venv/lib/python3.12/site-packages/jaxmarl/environments/jaxnav/maps/map.py:466: UserWarning: max_dist_to_goal (9.7) exceeds the valid map range (8.399999999999999). Distances larger than 8.399999999999999 will be clipped.
+  warnings.warn(
+/home/d/durmusy/Desktop/GIT/updatedjnavwsfl/sampling-for-learnability/.venv/lib/python3.12/site-packages/jax/_src/ops/scatter.py:105: FutureWarning: scatter inputs have incompatible types: cannot safely cast value from dtype=int32 to dtype=bool with jax_numpy_dtype_promotion=standard. In future JAX releases this will result in an error.
+  warnings.warn(
+JaxRobotarium not found. Skipping. Reason: No module named 'jaxrobotarium'
+Loading CNN learnability model from /home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/ensemble/jaxnav/ens-jaxnav-aug-init100/epoch_26...
+Loading CNN learnability model from /home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/ensemble/jaxnav/ens-jaxnav-aug-init101/epoch_22...
+Loading CNN learnability model from /home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/ensemble/jaxnav/ens-jaxnav-aug-init102/epoch_41...
+Loading CNN learnability model from /home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/ensemble/jaxnav/ens-jaxnav-aug-init103/epoch_32...
+Loading CNN learnability model from /home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/ensemble/jaxnav/ens-jaxnav-aug-init104/epoch_28...
+member_structure_diagnostics | n=5000 levels | K=5 | seed=0
+checkpoints: ['/home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/ensemble/jaxnav/ens-jaxnav-aug-init100/epoch_26', '/home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/ensemble/jaxnav/ens-jaxnav-aug-init101/epoch_22', '/home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/ensemble/jaxnav/ens-jaxnav-aug-init102/epoch_41', '/home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/ensemble/jaxnav/ens-jaxnav-aug-init103/epoch_32', '/home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/ensemble/jaxnav/ens-jaxnav-aug-init104/epoch_28']
+
+[1] per-member logit mean (offset) / std (scale)
+  init100  mean    -6.31   std   2.69
+  init101  mean   -12.76   std   3.03
+  init102  mean    -4.15   std   2.86
+  init103  mean    -7.88   std   2.11
+  init104  mean   -13.83   std   2.45
+
+[2] pairwise affine-model test: Pearson (linear) vs Spearman (monotone)
+  init100-init101  Pearson 0.8764  Spearman 0.8767  OLS slope    0.777
+  init100-init102  Pearson 0.8677  Spearman 0.8624  OLS slope    0.814
+  init100-init103  Pearson 0.8777  Spearman 0.8801  OLS slope    1.116
+  init100-init104  Pearson 0.8805  Spearman 0.8813  OLS slope    0.967
+  init101-init102  Pearson 0.7155  Spearman 0.7335  OLS slope    0.757
+  init101-init103  Pearson 0.8443  Spearman 0.8433  OLS slope    1.211
+  init101-init104  Pearson 0.9005  Spearman 0.9264  OLS slope    1.115
+  init102-init103  Pearson 0.7744  Spearman 0.7883  OLS slope    1.049
+  init102-init104  Pearson 0.7473  Spearman 0.7681  OLS slope    0.874
+  init103-init104  Pearson 0.8395  Spearman 0.8374  OLS slope    0.725
+  MEAN Pearson 0.8324  MEAN Spearman 0.8398  max |gap| 0.0260
+  overall mean pairwise Spearman (pairwise_rank_agreement): 0.8398
+
+[3] offset-removal test
+  per-level member std: raw 3.80 -> demeaned 0.94  (std reduction 75%, variance reduction 94%)
+
+[4] variance share per member under raw-logit-mean combination
+  init100: 20.6%  init101: 26.2%  init102: 23.4%  init103: 12.7%  init104: 17.1%
+  Spearman(raw-mean ensemble, widest member init101): 0.9257
+
+[5] combination rules: ranking agreement & uncertainty contamination
+  Spearman(score_raw, score_z) = 0.99973
+  Spearman(score_rank, score_raw) = 0.99741
+  Spearman(score_rank, score_z) = 0.99793
+  R^2(spread_raw ~ score_raw) = 0.000   <- raw spread is a restatement of the score
+  R^2(spread_z ~ score_z) = 0.095
+  R^2(spread_rank ~ score_rank) = 0.081
+
+[6] normalization behaviour: raw-mean vs z-mean combination
+  sigmoid(raw-mean): frac<0.01 0.950  frac in [0.1,0.9] 0.001  max 0.182
+  sigmoid(z-mean): frac<0.01 0.000  frac in [0.1,0.9] 0.991  max 0.947
+  percentile: Spearman(raw, z) = 0.99973;  frac |shift|>0.05 = 0.0000
+  selected-set overlap (1000 closest to mu=0.0): 0.982
+  selected-set overlap (1000 closest to mu=0.5): 0.977
+
+[7] Finding-2 re-test: spread(selected)/spread(all), selection in percentile space
+  rule=raw   mu=0.0  ratio =  0.93   (3.546 vs 3.805)
+  rule=raw   mu=0.5  ratio =  1.01   (3.861 vs 3.805)
+  rule=z     mu=0.0  ratio =  0.76   (0.2567 vs 0.3381)
+  rule=z     mu=0.5  ratio =  1.08   (0.3666 vs 0.3381)
+  rule=rank  mu=0.0  ratio =  0.90   (0.08258 vs 0.09218)
+  rule=rank  mu=0.5  ratio =  1.27   (0.1168 vs 0.09218)
+
+wrote member_structure_diagnostics_output.txt

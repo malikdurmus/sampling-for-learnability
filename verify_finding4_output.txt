@@ -1,0 +1,24 @@
+[fresh probe] n=4000 levels, seed 123 (independent of Finding 4's sample)
+Spearman(CNN, wall count)        = +0.9956   (claimed +0.9954)
+Spearman(CNN, passable)          = -0.5052   (claimed -0.5177)
+Spearman(CNN, shortest path len) = +nan   (claimed -0.0969)
+partial corr(CNN, passable|walls)= -0.0747   (claimed -0.1139)
+passability by CNN decile: [1.0, 1.0, 0.998, 0.983, 0.98, 0.918, 0.795, 0.675, 0.533, 0.398]   overall 0.828
+passable share of mu=0.3 selected buffer: 0.990
+passable share of mu=0.5 selected buffer: 0.949
+passable share of mu=0.7 selected buffer: 0.735
+passable share of mu=1.0 selected buffer: 0.465
+
+[npz cold-start data] (the recorded untrained-policy probe itself)
+never solved: 91.4%   (claimed 91.4%)
+pooled success rate: 0.0127   (claimed 0.0127)
+median episodes/level: 10, range 2-68   (claimed 10, 2-68)
+Spearman(CNN percentile, p): -0.0767   (claimed -0.077)
+Spearman(CNN percentile, n_eps): +0.5723   (episode-difficulty confound)
+mean p by CNN decile: [0.023, 0.0363, 0.0271, 0.0208, 0.0306, 0.0137, 0.0178, 0.0073, 0.0114, 0.009]
+
+[buffer-composition test of the '0.0% unsolvable SFL buffer' claim]
+levels with s>0 at cold start: 86/1000 -> only 86/200 buffer slots have evidence
+expected passable share of top-200 SFL buffer: 0.866
+expected passable share of the s>0 subset only: 0.887
+expected passable share of the zero-s tail portion: 0.849

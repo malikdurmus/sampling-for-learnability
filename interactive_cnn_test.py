@@ -5,7 +5,7 @@ import sys
 def parse_args():
     p = argparse.ArgumentParser(description="Interactive script to test CNN on JaxNav states.")
     p.add_argument("--cnn_checkpoint", type=str,
-                   default="/home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/finetune_linear_checkpoints/nc5766sd/epoch_7",
+                   default="/home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/ensemble/jaxnav/ens-jaxnav-aug-init100/epoch_26",
                    help="Path to the CNN orbax checkpoint directory")
     p.add_argument("--out_dir", type=str, default="./interactive_test_outputs",
                    help="Directory to save the generated images")
@@ -15,7 +15,7 @@ def parse_args():
                    help="Rasterizer cell_size")
     p.add_argument("--native_size", type=int, default=  500,
                    help="High-res rasterizer resolution for display")
-    p.add_argument("--cnn_size", type=int, default=200,
+    p.add_argument("--cnn_size", type=int, default=64,
                    help="CNN input resolution")
     p.add_argument("--cpu", action="store_true", help="Force CPU")
     return p.parse_args()
@@ -75,11 +75,34 @@ def main(args):
     def run_cnn_inference(img_cnn):
         # Add batch dim
         img_batch = jnp.expand_dims(img_cnn, axis=0)
+        # Negate so higher = harder
         score = cnn_model(img_batch, deterministic=True)
         return score[0]
 
     rng = jax.random.PRNGKey(42)
     step = 0
+    
+    print("\n========================================================")
+    print(" [4] Warming up to establish Min-Max normalization bounds...")
+    print("========================================================")
+    
+    # Generate a batch of 256 envs to find the min and max scores
+    rng, _rng = jax.random.split(rng)
+    warmup_rngs = jax.random.split(_rng, 256)
+    
+    # Vectorized generation and scoring
+    @jax.jit
+    def get_warmup_scores(rngs):
+        _, states = jax.vmap(env.reset)(rngs)
+        imgs = jax.vmap(render_cnn_state)(states)
+        # Negate so higher = harder
+        return cnn_model(imgs, deterministic=True)
+        
+    warmup_scores = get_warmup_scores(warmup_rngs)
+    c_min = float(jnp.min(warmup_scores))
+    c_max = float(jnp.max(warmup_scores))
+    
+    print(f"   Distribution bounds found: Min = {c_min:.4f}, Max = {c_max:.4f}")
     
     print("\n========================================================")
     print(" READY! Showing initial state.")
@@ -102,7 +125,10 @@ def main(args):
         
         # 3. Predict learnability 
         score = run_cnn_inference(img_cnn)
-        score_val = float(score)
+        raw_score = float(score)
+        
+        # Exact same normalization as jaxnav_sfl.py
+        norm_score = (raw_score - c_min) / (c_max - c_min + 1e-8)
         
         # 4. Display to screen
         axes[0].clear()
@@ -112,7 +138,7 @@ def main(args):
         
         axes[1].clear()
         axes[1].imshow(np.array(img_cnn))
-        axes[1].set_title(f"CNN Input ({args.cnn_size}x{args.cnn_size})\nLearnability Score: {score_val:.4f}")
+        axes[1].set_title(f"CNN Input ({args.cnn_size}x{args.cnn_size})\nNorm Score: {norm_score:.4f} (Raw: {raw_score:.1f})")
         axes[1].axis('off')
         
         plt.tight_layout()
@@ -120,12 +146,12 @@ def main(args):
         fig.canvas.flush_events() # Update the window immediately
         
         # 5. Save to disk
-        out_path = os.path.join(args.out_dir, f"env_{step:04d}_score_{score_val:.4f}.png")
+        out_path = os.path.join(args.out_dir, f"env_{step:04d}_score_{norm_score:.4f}.png")
         plt.savefig(out_path, dpi=100)
         
         # 6. Prompt user
         print(f"\n[Env {step}] Evaluated and saved to: {out_path}")
-        print(f"         Predicted Score: {score_val:.4f}")
+        print(f"         Normalized Score: {norm_score:.4f}  (Raw: {raw_score:.4f})")
         
         user_input = input("Press 'n' to generate another environment, or 'q' to quit: ").strip().lower()
         if user_input == 'q':
