@@ -17,7 +17,8 @@ def main():
             "map_id": "Grid-Rand-Poly",  # Grid-Rand, Grid-PreSpec, Polygon, Grid-Test2
             "map_params": {
                 "map_size": [11, 11],
-                "fill": 0.4,
+                "min_fill": 0.0,
+                "max_fill": 0.4,
                 "start_pad": 1.5,
                 "valid_path_check": True,
             }
