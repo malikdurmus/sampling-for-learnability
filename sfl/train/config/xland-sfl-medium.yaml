@@ -1,0 +1,63 @@
+
+defaults:
+  - env: xland
+  - learning: ippo-xland
+  - _self_
+
+"SEED": 2
+"GROUP_NAME": "xland-sfl"
+"ENTITY": ""
+"PROJECT": "xland_sfl"
+"WANDB_MODE" : "online"
+
+env:
+  ruleset: "medium"
+"SAVE_PATH": "checkpoints/xland_sfl"
+
+learning:
+  "NUM_ENVS_FROM_SAMPLED": 16
+  "NUM_ENVS_TO_GENERATE": 16
+
+# SAMPLE LEARNABILITY 
+"BATCH_SIZE": 1000
+"NUM_BATCHES": 5
+"ROLLOUT_STEPS": 2500
+"NUM_TO_SAVE": 1000
+
+# =========================================================
+# LEARN_METHOD: Single key that controls the entire pipeline.
+# Valid values:
+#   "standard"              - Bare SFL (empirical rollouts only)
+#   "random"                - Random baseline
+#   "cnn"                   - CNN-only with CURRICULUM_STRATEGY
+#   "hybrid_linear"         - Hybrid: (4*sfl) + cnn_proximity
+#   "hybrid_soft_handoff"   - Hybrid: alpha-blended SFL/CNN
+#   "hybrid_learnability_weighted" - Hybrid: inverse-SFL-weighted CNN
+#   "hybrid_multiplicative" - Hybrid: Gaussian-filtered product
+# =========================================================
+LEARN_METHOD: "standard"
+RUN_NAME: "xland_sfl_standard"
+
+# Curriculum Configuration (used by cnn and hybrid methods)
+CURRICULUM_STRATEGY: "performance_adaptive"
+CURRICULUM_START_MU: 0.05
+CURRICULUM_STEP_SIZE: 0.05
+CURRICULUM_GAUSSIAN_VAR: 0.1
+
+
+CNN_CHECKPOINT_PATHS:
+  - /home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/ensemble/xmg_medium/ens-xmgmed-aug-init100/epoch_34
+  - /home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/ensemble/xmg_medium/ens-xmgmed-aug-init101/epoch_41
+  - /home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/ensemble/xmg_medium/ens-xmgmed-aug-init102/epoch_49
+  - /home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/ensemble/xmg_medium/ens-xmgmed-aug-init103-restart/epoch_47
+  - /home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/ensemble/xmg_medium/ens-xmgmed-aug-init104-restart2/epoch_32
+
+
+CNN_SCORE_METHOD: "percentile"
+
+# Frozen-reference percentile calibration (used when CNN_SCORE_METHOD=percentile)
+PERCENTILE_REF_SIZE: 10000
+PERCENTILE_REF_SEED: 4242  # shared across runs/seeds so scores stay comparable
+
+# Logging
+log_num_images: 20

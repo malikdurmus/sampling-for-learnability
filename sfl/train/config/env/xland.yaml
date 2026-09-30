@@ -1,0 +1,18 @@
+env_name: "XLand-MiniGrid-R4-13x13"
+env_id: "XLand-MiniGrid-R4-13x13"
+benchmark_id: "high-3m"
+ruleset: "difficult"
+img_obs: false
+tile_size: 32
+view_size: 7
+
+# Network
+action_emb_dim: 16
+rnn_hidden_dim: 1024
+rnn_num_layers: 1
+head_hidden_dim: 256
+
+# Eval
+eval_num_envs: 512
+eval_num_episodes: 10
+eval_seed: 42

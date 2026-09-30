@@ -1,0 +1,78 @@
+defaults:
+  - env: xland
+  - learning: ippo-xland
+  - _self_
+
+"SEED": 2
+"GROUP_NAME": "xland-sfl"
+"ENTITY": ""
+"PROJECT": "xland_sfl"
+"WANDB_MODE" : "online"
+"SAVE_PATH": "checkpoints/xland_sfl"
+
+learning:
+  "NUM_ENVS_FROM_SAMPLED": 16
+  "NUM_ENVS_TO_GENERATE": 16
+
+# SAMPLE LEARNABILITY 
+"BATCH_SIZE": 1000
+"NUM_BATCHES": 5
+"ROLLOUT_STEPS": 2500
+"NUM_TO_SAVE": 1000
+
+# =========================================================
+# LEARN_METHOD: Single key that controls the entire pipeline.
+# Valid values:
+#   "standard"              - Bare SFL (empirical rollouts only)
+#   "random"                - Random baseline
+#   "cnn"                   - CNN-only with CURRICULUM_STRATEGY
+#   "hybrid_linear"         - Hybrid: (4*sfl) + cnn_proximity
+#   "hybrid_soft_handoff"   - Hybrid: alpha-blended SFL/CNN
+#   "hybrid_learnability_weighted" - Hybrid: inverse-SFL-weighted CNN
+#   "hybrid_multiplicative" - Hybrid: Gaussian-filtered product
+# =========================================================
+LEARN_METHOD: "standard"
+RUN_NAME: "xland_sfl_standard"
+
+# Curriculum Configuration (used by cnn and hybrid methods)
+CURRICULUM_STRATEGY: "performance_adaptive"
+CURRICULUM_START_MU: 0.05
+CURRICULUM_STEP_SIZE: 0.05
+CURRICULUM_GAUSSIAN_VAR: 0.1
+
+# =========================================================
+# CNN scorer checkpoints (list of member epoch dirs).
+# K>=2 -> deep ensemble: mean of member LOGITS, then normalization.
+# K=1  -> standalone member (identical to the single-model path).
+# Default = DEPLOYED xland difficult aug ensemble (uedrlhf
+# tvt-ensemble-xmg-difficult; members init101..105 — NOT 100..104). Epoch
+# provenance: uedrlhf outputs/checkpoints/CHECKPOINT_INDEX.json
+# (selected_epoch_raw / path, read 2026-08-29) — the authoritative pin; never
+# re-derive epochs from W&B or from the epoch dirs on disk.
+# Medium-ruleset alternates (ablation; same index): ens-xmgmed-aug-init100/
+# epoch_34, 101/41, 102/49, 103-restart/47, 104-restart2/32; no-aug
+# ens-xmgmed-init100/epoch_15, 101/18, 102/19, 103/24, 104/10.
+# =========================================================
+CNN_CHECKPOINT_PATHS:
+  - /home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/ensemble/xmg_difficult/ens-xmg-aug-init101/epoch_49
+  - /home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/ensemble/xmg_difficult/ens-xmg-aug-init102/epoch_46
+  - /home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/ensemble/xmg_difficult/ens-xmg-aug-init103/epoch_46
+  - /home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/ensemble/xmg_difficult/ens-xmg-aug-init104/epoch_50
+  - /home/d/durmusy/Desktop/GIT/new/uedrlhf/outputs/checkpoints/ensemble/xmg_difficult/ens-xmg-aug-init105/epoch_41
+
+# CNN score normalization: "percentile" (frozen-reference percentile; see
+# PERCENTILE_* below), "sigmoid", or "minmax" (per-cycle over raw logits).
+# CAMPAIGN DEFAULT = percentile (approved by Malik 2026-08-28 after Wave 0
+# on jaxnav found sigmoid degenerate for pairwise-trained scorers — see
+# THESIS_FINDINGS.md Finding 1; the offset argument applies to the xland
+# scorers identically).
+# NOTE (percentile): the frozen reference is rebuilt at startup from the
+# configured scorer's (ensemble-mean) logits — it is calibrated per-scorer.
+CNN_SCORE_METHOD: "percentile"
+
+# Frozen-reference percentile calibration (used when CNN_SCORE_METHOD=percentile)
+PERCENTILE_REF_SIZE: 10000
+PERCENTILE_REF_SEED: 4242  # shared across runs/seeds so scores stay comparable
+
+# Logging
+log_num_images: 20
